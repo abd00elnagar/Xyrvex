@@ -14,9 +14,9 @@ This document provides a granular, feature-complete roadmap for building the SQL
 - [ ] Verify `vite.config.ts`, `tailwind.config.js`, and `postcss.config.js`.
 
 ### 1.2 Window & Menu
-- [ ] Create `BrowserWindow` in `src/bun/index.ts` with HMR dev server check.
-- [ ] Implement `ApplicationMenu` in the Bun process.
-- [ ] Set up `before-quit` listener for graceful shutdown.
+- [x] Create `BrowserWindow` in `src/bun/index.ts` with HMR dev server check.
+- [x] Implement `ApplicationMenu` in the Bun process.
+- [x] Set up `before-quit` listener for graceful shutdown.
 
 ### 1.3 React App Shell
 - [ ] Setup `src/mainview/main.tsx` and `App.tsx`.
