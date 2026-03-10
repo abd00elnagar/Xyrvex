@@ -5,17 +5,28 @@ let currentDb: Database | null = null;
 let currentDbPath: string | null = null;
 
 export function openDatabase(path: string): Database {
+    console.log(`[connection] openDatabase: Attempting to open "${path}"`);
     if (currentDb) {
+        console.log(`[connection] openDatabase: Closing existing database...`);
         currentDb.close();
     }
 
-    currentDb = new Database(path);
-    currentDbPath = path;
+    try {
+        console.log(`[connection] openDatabase: Calling new Database("${path}")`);
+        currentDb = new Database(path);
+        currentDbPath = path;
+        console.log(`[connection] openDatabase: Database instance created.`);
 
-    // Enable foreign keys
-    currentDb.run("PRAGMA foreign_keys = ON;");
+        // Enable foreign keys
+        console.log(`[connection] openDatabase: Running PRAGMA foreign_keys = ON...`);
+        currentDb.run("PRAGMA foreign_keys = ON;");
+        console.log(`[connection] openDatabase: PRAGMA finished.`);
 
-    return currentDb;
+        return currentDb;
+    } catch (e) {
+        console.error(`[connection] openDatabase: ERROR: ${e}`);
+        throw e;
+    }
 }
 
 export function closeDatabase() {

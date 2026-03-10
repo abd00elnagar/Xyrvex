@@ -12,8 +12,8 @@ export function Header({ dbName }: HeaderProps) {
                     SQL Editor
                 </span>
                 <div className="h-4 w-[1px] bg-neutral-800 mx-1" />
-                <span className="text-sm font-medium text-neutral-300 truncate max-w-md">
-                    {dbName}
+                <span className={`text-sm font-medium truncate max-w-md ${dbName === "No database open" ? 'text-neutral-600 italic' : 'text-neutral-300'}`}>
+                    {dbName === "No database open" ? "No Active Database" : dbName}
                 </span>
             </div>
         </header>

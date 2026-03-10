@@ -1,20 +1,16 @@
-import Electrobun, { BrowserWindow, Updater, ApplicationMenu, defineElectrobunRPC, type ElectrobunRPCSchema } from "electrobun/bun";
-import type { AppRPC, OpenResult, OpResult, TableData, TerminalResult, SessionData } from "../shared/types";
+import Electrobun, { BrowserWindow, Updater, ApplicationMenu, defineElectrobunRPC } from "electrobun/bun";
+import type { AppSchema, OpenResult, OpResult, TableData, TerminalResult, SessionData } from "../shared/types";
+
+process.on('uncaughtException', (err) => {
+	console.error('UNCAUGHT EXCEPTION:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+	console.error('UNHANDLED REJECTION at:', promise, 'reason:', reason);
+});
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
-
-// Define the full schema for Electrobun
-interface AppSchema extends ElectrobunRPCSchema {
-	bun: {
-		requests: AppRPC["requests"];
-		messages: AppRPC["messages"];
-	};
-	webview: {
-		requests: {};
-		messages: {};
-	};
-}
 
 // Check if Vite dev server is running for HMR
 async function getMainViewUrl(): Promise<string> {
@@ -33,62 +29,63 @@ async function getMainViewUrl(): Promise<string> {
 	return "views://mainview/index.html";
 }
 
-import { dbHandlers } from "./ipc/handlers";
+import { createDbHandlers } from "./ipc/handlers";
 
 // RPC Setup
 const rpc = defineElectrobunRPC<AppSchema>("bun", {
 	handlers: {
-		requests: {
-			dbOpen: dbHandlers.dbOpen,
-			dbCreate: dbHandlers.dbCreate,
-			dbSave: async (): Promise<OpResult> => {
-				return { ok: false, error: "Not implemented" };
-			},
-			dbSaveAs: async (): Promise<OpResult> => {
-				return { ok: false, error: "Not implemented" };
-			},
-			dbClose: async (): Promise<OpResult> => {
-				return { ok: false, error: "Not implemented" };
-			},
-			tableList: dbHandlers.tableList,
-			tableFetchAll: async (): Promise<TableData> => {
-				return { columns: [], rows: [] };
-			},
-			terminalExec: dbHandlers.terminalExec,
-			tableCreate: async (): Promise<OpResult> => {
-				return { ok: false, error: "Not implemented" };
-			},
-			tableDrop: async (): Promise<OpResult> => {
-				return { ok: false, error: "Not implemented" };
-			},
-			columnAdd: async (): Promise<OpResult> => {
-				return { ok: false, error: "Not implemented" };
-			},
-			columnDrop: async (): Promise<OpResult> => {
-				return { ok: false, error: "Not implemented" };
-			},
-			rowInsert: async (): Promise<OpResult> => {
-				return { ok: false, error: "Not implemented" };
-			},
-			rowDelete: async (): Promise<OpResult> => {
-				return { ok: false, error: "Not implemented" };
-			},
-			cellUpdate: async (): Promise<OpResult> => {
-				return { ok: false, error: "Not implemented" };
-			},
-			cellExec: async (): Promise<OpResult> => {
-				return { ok: false, error: "Not implemented" };
-			},
-			terminalExec: async (): Promise<TerminalResult> => {
-				return { sql: "", error: "Not implemented" };
-			},
-			autosaveSet: async (): Promise<OpResult> => {
-				return { ok: false, error: "Not implemented" };
-			},
-			sessionGet: async (): Promise<SessionData> => {
-				return { lastOpenedPath: null, windowMaximized: false, autoSave: false };
-			},
-		},
+		requests: {}
+	}
+});
+
+const dbHandlers = createDbHandlers(rpc);
+
+rpc.setRequestHandler({
+	dbOpen: dbHandlers.dbOpen,
+	dbCreate: dbHandlers.dbCreate,
+	dbSave: async (): Promise<OpResult> => {
+		return { ok: false, error: "Not implemented" };
+	},
+	dbSaveAs: async (): Promise<OpResult> => {
+		return { ok: false, error: "Not implemented" };
+	},
+	dbClose: async (): Promise<OpResult> => {
+		return { ok: false, error: "Not implemented" };
+	},
+	tableList: dbHandlers.tableList,
+	tableFetchAll: async (params): Promise<TableData> => {
+		return { columns: [], rows: [] };
+	},
+	terminalExec: dbHandlers.terminalExec,
+	tableCreate: async (): Promise<OpResult> => {
+		return { ok: false, error: "Not implemented" };
+	},
+	tableDrop: async (): Promise<OpResult> => {
+		return { ok: false, error: "Not implemented" };
+	},
+	columnAdd: async (): Promise<OpResult> => {
+		return { ok: false, error: "Not implemented" };
+	},
+	columnDrop: async (): Promise<OpResult> => {
+		return { ok: false, error: "Not implemented" };
+	},
+	rowInsert: async (): Promise<OpResult> => {
+		return { ok: false, error: "Not implemented" };
+	},
+	rowDelete: async (): Promise<OpResult> => {
+		return { ok: false, error: "Not implemented" };
+	},
+	cellUpdate: async (): Promise<OpResult> => {
+		return { ok: false, error: "Not implemented" };
+	},
+	cellExec: async (): Promise<OpResult> => {
+		return { ok: false, error: "Not implemented" };
+	},
+	autosaveSet: async (): Promise<OpResult> => {
+		return { ok: false, error: "Not implemented" };
+	},
+	sessionGet: async (): Promise<SessionData> => {
+		return { lastOpenedPath: null, windowMaximized: false, autoSave: false };
 	},
 });
 
@@ -106,6 +103,12 @@ const mainWindow = new BrowserWindow({
 		y: 100,
 	},
 	titleBarStyle: "default",
+	styleMask: {
+		Titled: true,
+		Closable: true,
+		Miniaturizable: true,
+		Resizable: true,
+	},
 });
 
 // Menu Setup
@@ -175,30 +178,21 @@ ApplicationMenu.setApplicationMenu([
 
 // Handle Menu Clicks
 ApplicationMenu.on("application-menu-clicked", (event: any) => {
-	const action = event.action;
-	if (!action) return;
-
-	switch (action) {
-		case "new-db":
-			mainWindow.webview.executeJavascript("window.dispatchEvent(new CustomEvent('app-menu-new-db'))");
-			break;
-		case "open-db":
-			mainWindow.webview.executeJavascript("window.dispatchEvent(new CustomEvent('app-menu-open-db'))");
-			break;
-		case "save":
-			mainWindow.webview.executeJavascript("window.dispatchEvent(new CustomEvent('app-menu-save'))");
-			break;
-		case "save-as":
-			mainWindow.webview.executeJavascript("window.dispatchEvent(new CustomEvent('app-menu-save-as'))");
-			break;
-		case "refresh":
-			mainWindow.webview.executeJavascript("window.dispatchEvent(new CustomEvent('app-menu-refresh'))");
-			break;
-		case "toggle-terminal":
-			mainWindow.webview.executeJavascript("window.dispatchEvent(new CustomEvent('app-menu-toggle-terminal'))");
-			break;
+	const action = event.data?.action;
+	if (action) {
+		console.log(`Menu clicked: ${action}`);
+		rpc.send.menuAction({ action });
 	}
 });
+
+// Force layout refresh for Windows to ensure webview matches window size initially
+setTimeout(() => {
+	const { width, height } = mainWindow.getSize();
+	mainWindow.setSize(width + 1, height);
+	setTimeout(() => {
+		mainWindow.setSize(width, height);
+	}, 100);
+}, 500);
 
 Electrobun.events.on("before-quit", async () => {
 	// Graceful shutdown logic will go here

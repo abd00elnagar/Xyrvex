@@ -2,76 +2,102 @@ import { Utils } from "electrobun/bun";
 import { openDatabase, getCurrentDbPath, isValidDatabase } from "../db/connection";
 import { getTableNames, executeRawQuery } from "../db/queries";
 import type { AppRPC, OpenResult, OpResult, TerminalResult } from "../../shared/types";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 
-export const dbHandlers = {
+// We'll pass the RPC instance from index.ts to enable push messages
+export const createDbHandlers = (rpc: AppRPC) => ({
     dbOpen: async (): Promise<OpenResult> => {
+        console.log("[dbHandlers] dbOpen: Opening file dialog...");
+
         const filePaths = await Utils.openFileDialog({
             canChooseFiles: true,
             canChooseDirectory: false,
             allowsMultipleSelection: false,
-            allowedFileTypes: "db,sqlite,sqlite3"
+            allowedFileTypes: "db;sqlite;sqlite3"
         });
 
-        if (!filePaths || filePaths.length === 0 || filePaths[0] === "") {
+        console.log(`[dbHandlers] dbOpen: result = ${JSON.stringify(filePaths)}`);
+
+        if (!filePaths || filePaths.length === 0 || filePaths[0] === "" || filePaths[0] === "undefined") {
+            console.log("[dbHandlers] dbOpen: No file selected or user cancelled.");
             return { ok: false, error: "No file selected", dbName: "", dbPath: null, tables: [] };
         }
 
-        const path = filePaths[0];
+        const path = filePaths[0].trim();
+        console.log(`[dbHandlers] dbOpen: Path selected: "${path}"`);
 
         try {
+            console.log(`[dbHandlers] dbOpen: Calling openDatabase("${path}")`);
             openDatabase(path);
+            console.log(`[dbHandlers] dbOpen: Database opened. Fetching tables...`);
             const tables = getTableNames();
-            return {
+            console.log(`[dbHandlers] dbOpen: Tables fetched: ${JSON.stringify(tables)}`);
+            const response = {
                 ok: true,
                 dbName: basename(path),
                 dbPath: path,
                 tables
             };
+
+            // Push the update to the webview immediately
+            console.log(`[dbHandlers] dbOpen: Pushing dbOpened message to webview...`);
+            rpc.send.dbOpened(response);
+
+            console.log(`[dbHandlers] dbOpen: Returning response: ${JSON.stringify(response)}`);
+            return response;
         } catch (e) {
+            console.error(`[dbHandlers] dbOpen Error: ${e}`);
             return { ok: false, error: String(e), dbName: "", dbPath: null, tables: [] };
         }
     },
 
-    dbCreate: async (): Promise<OpenResult> => {
-        // Electrobun doesn't have a saveFileDialog yet based on Utils.ts, 
-        // but we can use openFileDialog for a folder or just ask for a path.
-        // For now, let's use a message box to explain or a simplified approach.
-        // Actually, many SQLite editors just open an existing one or create at a known path.
-        // Let's assume for now creating is just opening a new file path.
+    dbCreate: async (params: { filename: string }): Promise<OpenResult> => {
+        const { filename } = params;
+        console.log(`[dbHandlers] dbCreate: Starting process with filename: "${filename}"`);
 
-        const { response } = await Utils.showMessageBox({
-            type: "question",
-            title: "Create Database",
-            message: "Select a location for the new SQLite database file.",
-            buttons: ["Select Location", "Cancel"]
-        });
-
-        if (response !== 0) {
-            return { ok: false, error: "Cancelled", dbName: "", dbPath: null, tables: [] };
+        if (!filename) {
+            return { ok: false, error: "No filename provided", dbName: "", dbPath: null, tables: [] };
         }
 
+        const finalFilename = filename.toLowerCase().endsWith(".db") ? filename : `${filename}.db`;
+        console.log(`[dbHandlers] dbCreate: Final filename will be: "${finalFilename}"`);
+
+        console.log("[dbHandlers] dbCreate: Prompting for folder selection...");
         const filePaths = await Utils.openFileDialog({
-            canChooseFiles: false, // Let them choose folder
+            canChooseFiles: false,
             canChooseDirectory: true,
             allowsMultipleSelection: false
         });
 
-        if (!filePaths || filePaths.length === 0 || filePaths[0] === "") {
+        console.log(`[dbHandlers] dbCreate: Folder selection result = ${JSON.stringify(filePaths)}`);
+
+        if (!filePaths || filePaths.length === 0 || filePaths[0] === "" || filePaths[0] === "undefined") {
+            console.log("[dbHandlers] dbCreate: No folder selected or user cancelled.");
             return { ok: false, error: "No location selected", dbName: "", dbPath: null, tables: [] };
         }
 
-        const path = `${filePaths[0]}/new_database.db`; // Simplified for now
+        const folderPath = filePaths[0].trim();
+        const path = join(folderPath, finalFilename);
+        console.log(`[dbHandlers] dbCreate: Full target path: "${path}"`);
 
         try {
+            console.log(`[dbHandlers] dbCreate: Initializing database at "${path}"...`);
             openDatabase(path);
-            return {
+            const response = {
                 ok: true,
                 dbName: basename(path),
                 dbPath: path,
                 tables: []
             };
+
+            // Push the update to the webview immediately
+            console.log(`[dbHandlers] dbCreate: Pushing dbOpened message to webview...`);
+            rpc.send.dbOpened(response);
+
+            console.log("[dbHandlers] dbCreate: Success!");
+            return response;
         } catch (e) {
+            console.error(`[dbHandlers] dbCreate Error: ${e}`);
             return { ok: false, error: String(e), dbName: "", dbPath: null, tables: [] };
         }
     },
@@ -91,4 +117,4 @@ export const dbHandlers = {
             return { sql: params.sql, error: String(e) };
         }
     }
-};
+});
