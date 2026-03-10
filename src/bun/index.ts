@@ -33,16 +33,14 @@ async function getMainViewUrl(): Promise<string> {
 	return "views://mainview/index.html";
 }
 
+import { dbHandlers } from "./ipc/handlers";
+
 // RPC Setup
 const rpc = defineElectrobunRPC<AppSchema>("bun", {
 	handlers: {
 		requests: {
-			dbOpen: async (): Promise<OpenResult> => {
-				return { ok: false, error: "Not implemented", dbName: "", dbPath: null, tables: [] };
-			},
-			dbCreate: async (): Promise<OpenResult> => {
-				return { ok: false, error: "Not implemented", dbName: "", dbPath: null, tables: [] };
-			},
+			dbOpen: dbHandlers.dbOpen,
+			dbCreate: dbHandlers.dbCreate,
 			dbSave: async (): Promise<OpResult> => {
 				return { ok: false, error: "Not implemented" };
 			},
@@ -52,9 +50,7 @@ const rpc = defineElectrobunRPC<AppSchema>("bun", {
 			dbClose: async (): Promise<OpResult> => {
 				return { ok: false, error: "Not implemented" };
 			},
-			tableList: async (): Promise<{ tables: string[] }> => {
-				return { tables: [] };
-			},
+			tableList: dbHandlers.tableList,
 			tableFetchAll: async (): Promise<TableData> => {
 				return { columns: [], rows: [] };
 			},
