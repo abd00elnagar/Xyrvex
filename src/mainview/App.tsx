@@ -3,6 +3,7 @@ import { Electroview } from "electrobun/view";
 import type { AppRPC } from "../shared/types";
 import { Header } from "./components/Header";
 import { Sidebar } from "./components/Sidebar";
+import { Terminal } from "./components/Terminal";
 
 const rpc = Electroview.defineRPC<AppRPC, {}>({
 	handlers: {
@@ -36,6 +37,14 @@ function App() {
 		} catch (err) {
 			console.error("RPC Error opening DB:", err);
 		}
+	}, []);
+
+	const handleExecuteQuery = useCallback(async (sql: string) => {
+		const result = await rpc.requests.terminalExec({ sql });
+		// After execution, refresh table list in case of mutations
+		const tableList = await rpc.requests.tableList({});
+		setTables(tableList.tables);
+		return result;
 	}, []);
 
 	useEffect(() => {
@@ -73,7 +82,7 @@ function App() {
 						{activeTable ? (
 							<div className="text-center animate-in fade-in duration-500">
 								<h1 className="text-3xl font-bold text-neutral-200 mb-2">{activeTable}</h1>
-								<p className="text-neutral-500">Table browser implementation coming in Phase 3</p>
+								<p className="text-neutral-500 text-sm">Table browser implementation coming in Phase 3</p>
 							</div>
 						) : (
 							<div className="text-center max-w-sm">
@@ -102,40 +111,11 @@ function App() {
 						)}
 					</div>
 
-					{/* Terminal Drawer */}
-					<div className={`border-t border-neutral-800 bg-neutral-950/80 backdrop-blur-md transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1) relative z-20 ${isTerminalOpen ? 'h-72 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]' : 'h-10'}`}>
-						<div
-							className="h-10 flex items-center px-6 bg-neutral-800/30 cursor-pointer hover:bg-neutral-800/50 transition-colors group"
-							onClick={() => setIsTerminalOpen(!isTerminalOpen)}
-						>
-							<div className="flex items-center space-x-2 flex-1">
-								<div className={`w-1.5 h-1.5 rounded-full ${isTerminalOpen ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-neutral-600'}`} />
-								<span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest group-hover:text-neutral-200 transition-colors">SQL Terminal</span>
-							</div>
-							<svg className={`w-4 h-4 text-neutral-500 transform transition-all duration-300 ${isTerminalOpen ? 'rotate-0' : 'rotate-180 opacity-50'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 13l-7 7-7-7" /></svg>
-						</div>
-
-						{isTerminalOpen && (
-							<div className="p-5 h-[calc(100%-40px)] flex flex-col space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-								<div className="relative flex-1 group">
-									<textarea
-										className="w-full h-full bg-neutral-900/50 border border-neutral-800 rounded-xl p-4 text-sm font-mono text-emerald-400 focus:outline-none focus:border-emerald-500/30 transition-all resize-none shadow-inner"
-										placeholder="-- Enter SQL command..."
-										spellCheck={false}
-									/>
-									<div className="absolute right-3 bottom-3 flex space-x-2">
-										<button className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all shadow-lg shadow-emerald-900/20 uppercase tracking-wider active:scale-95">
-											Execute Query
-										</button>
-									</div>
-								</div>
-								<div className="h-20 bg-neutral-900/80 border border-neutral-800/50 rounded-lg p-3 overflow-hidden">
-									<div className="text-[10px] text-neutral-500 uppercase font-bold tracking-tight mb-1">Output</div>
-									<div className="text-xs font-mono text-neutral-400 italic">No command executed yet.</div>
-								</div>
-							</div>
-						)}
-					</div>
+					<Terminal
+						isOpen={isTerminalOpen}
+						onToggle={() => setIsTerminalOpen(!isTerminalOpen)}
+						onExecute={handleExecuteQuery}
+					/>
 				</main>
 			</div>
 		</div>
