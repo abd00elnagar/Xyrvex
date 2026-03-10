@@ -1,5 +1,5 @@
 import { getDatabase } from "./connection";
-import type { ColumnInfo } from "../../shared/types";
+import type { ColumnInfo, TableData } from "../../shared/types";
 
 export function getTableNames(): string[] {
     const db = getDatabase();
@@ -37,5 +37,27 @@ export function executeRawQuery(sql: string): any {
         };
     } catch (e) {
         return { sql, error: String(e) };
+    }
+}
+
+export function getTableData(tableName: string): TableData {
+    const db = getDatabase();
+    const columns = getTableInfo(tableName);
+
+    try {
+        // We explicitly include rowid for editing/deletion
+        const rows = db.query(`SELECT rowid, * FROM "${tableName}"`).all() as any[];
+
+        return {
+            // Prepend rowid column metadata
+            columns: [
+                { cid: -1, name: 'rowid', type: 'INTEGER', notNull: true, primaryKey: false, defaultValue: null },
+                ...columns
+            ],
+            rows: rows.map(r => Object.values(r))
+        };
+    } catch (e) {
+        console.error(`Error fetching data for ${tableName}:`, e);
+        return { columns, rows: [] };
     }
 }

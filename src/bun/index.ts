@@ -53,9 +53,9 @@ rpc.setRequestHandler({
 		return { ok: false, error: "Not implemented" };
 	},
 	tableList: dbHandlers.tableList,
-	tableFetchAll: async (params): Promise<TableData> => {
-		return { columns: [], rows: [] };
-	},
+	tableFetchAll: dbHandlers.tableFetchAll,
+	cellUpdate: dbHandlers.cellUpdate,
+	rowDelete: dbHandlers.rowDelete,
 	terminalExec: dbHandlers.terminalExec,
 	tableCreate: async (): Promise<OpResult> => {
 		return { ok: false, error: "Not implemented" };

@@ -1,6 +1,6 @@
 import { Utils } from "electrobun/bun";
 import { openDatabase, getCurrentDbPath, isValidDatabase } from "../db/connection";
-import { getTableNames, executeRawQuery } from "../db/queries";
+import { getTableNames, executeRawQuery, getTableData } from "../db/queries";
 import type { AppRPC, OpenResult, OpResult, TerminalResult } from "../../shared/types";
 import { basename, join } from "node:path";
 
@@ -107,6 +107,36 @@ export const createDbHandlers = (rpc: AppRPC) => ({
             return { tables: getTableNames() };
         } catch (e) {
             return { tables: [] };
+        }
+    },
+
+    tableFetchAll: async (params: { tableName: string }): Promise<TableData> => {
+        try {
+            return getTableData(params.tableName);
+        } catch (e) {
+            return { columns: [], rows: [] };
+        }
+    },
+
+    cellUpdate: async (params: { tableName: string; column: string; value: any; rowId: number }): Promise<OpResult> => {
+        try {
+            const sql = `UPDATE "${params.tableName}" SET "${params.column}" = ? WHERE rowid = ?`;
+            const db = openDatabase(getCurrentDbPath() || ""); // Ensure connection
+            db.query(sql).run(params.value, params.rowId);
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: String(e) };
+        }
+    },
+
+    rowDelete: async (params: { tableName: string; rowId: number }): Promise<OpResult> => {
+        try {
+            const sql = `DELETE FROM "${params.tableName}" WHERE rowid = ?`;
+            const db = openDatabase(getCurrentDbPath() || "");
+            db.query(sql).run(params.rowId);
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: String(e) };
         }
     },
 
