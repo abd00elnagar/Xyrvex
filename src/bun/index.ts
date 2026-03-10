@@ -100,12 +100,12 @@ const mainWindow = new BrowserWindow({
 	url,
 	rpc,
 	frame: {
-		width: 1100,
-		height: 760,
-		x: 200,
-		y: 200,
+		width: 1200,
+		height: 800,
+		x: 100,
+		y: 100,
 	},
-	titleBarStyle: "hidden",
+	titleBarStyle: "default",
 });
 
 // Menu Setup

@@ -18,6 +18,9 @@ const rpc = Electroview.defineRPC<AppRPC, {}>({
 	}
 });
 
+// Initialize RPC transport
+new Electroview({ rpc });
+
 function App() {
 	const [dbName, setDbName] = useState<string>("No database open");
 	const [tables, setTables] = useState<string[]>([]);
