@@ -1,23 +1,23 @@
 export type AppRPC = {
     requests: {
-        dbOpen: (params: {}) => Promise<OpenResult>;
-        dbCreate: (params: {}) => Promise<OpenResult>;
-        dbSave: (params: {}) => Promise<OpResult>;
-        dbSaveAs: (params: { suggestedName: string }) => Promise<OpResult>;
-        dbClose: (params: {}) => Promise<OpResult>;
-        tableList: (params: {}) => Promise<{ tables: string[] }>;
-        tableFetchAll: (params: { tableName: string }) => Promise<TableData>;
-        tableCreate: (params: { tableName: string; columns: ColumnDef[] }) => Promise<OpResult>;
-        tableDrop: (params: { tableName: string }) => Promise<OpResult>;
-        columnAdd: (params: { tableName: string; column: ColumnDef }) => Promise<OpResult>;
-        columnDrop: (params: { tableName: string; columnName: string }) => Promise<OpResult>;
-        rowInsert: (params: { tableName: string }) => Promise<OpResult>;
-        rowDelete: (params: { tableName: string; rowId: number }) => Promise<OpResult>;
-        cellUpdate: (params: { tableName: string; columnName: string; rowId: number; value: string | number | null }) => Promise<OpResult>;
-        cellExec: (params: { sql: string; params: (string | number | null)[] }) => Promise<OpResult>;
-        terminalExec: (params: { sql: string }) => Promise<TerminalResult>;
-        autosaveSet: (params: { enabled: boolean }) => Promise<OpResult>;
-        sessionGet: (params: {}) => Promise<SessionData>;
+        dbOpen: { params: {}; response: OpenResult };
+        dbCreate: { params: {}; response: OpenResult };
+        dbSave: { params: {}; response: OpResult };
+        dbSaveAs: { params: { suggestedName: string }; response: OpResult };
+        dbClose: { params: {}; response: OpResult };
+        tableList: { params: {}; response: { tables: string[] } };
+        tableFetchAll: { params: { tableName: string }; response: TableData };
+        tableCreate: { params: { tableName: string; columns: ColumnDef[] }; response: OpResult };
+        tableDrop: { params: { tableName: string }; response: OpResult };
+        columnAdd: { params: { tableName: string; column: ColumnDef }; response: OpResult };
+        columnDrop: { params: { tableName: string; columnName: string }; response: OpResult };
+        rowInsert: { params: { tableName: string }; response: OpResult };
+        rowDelete: { params: { tableName: string; rowId: number }; response: OpResult };
+        cellUpdate: { params: { tableName: string; columnName: string; rowId: number; value: string | number | null }; response: OpResult };
+        cellExec: { params: { sql: string; params: (string | number | null)[] }; response: OpResult };
+        terminalExec: { params: { sql: string }; response: TerminalResult };
+        autosaveSet: { params: { enabled: boolean }; response: OpResult };
+        sessionGet: { params: {}; response: SessionData };
     };
     messages: {
         dbDirtyChanged: { isDirty: boolean };
