@@ -1,7 +1,7 @@
 import { Utils } from "electrobun/bun";
 import { openDatabase, getCurrentDbPath, isValidDatabase } from "../db/connection";
-import { getTableNames } from "../db/queries";
-import type { AppRPC, OpenResult, OpResult } from "../../shared/types";
+import { getTableNames, executeRawQuery } from "../db/queries";
+import type { AppRPC, OpenResult, OpResult, TerminalResult } from "../../shared/types";
 import { basename } from "node:path";
 
 export const dbHandlers = {
@@ -81,6 +81,14 @@ export const dbHandlers = {
             return { tables: getTableNames() };
         } catch (e) {
             return { tables: [] };
+        }
+    },
+
+    terminalExec: async (params: { sql: string }): Promise<TerminalResult> => {
+        try {
+            return executeRawQuery(params.sql);
+        } catch (e) {
+            return { sql: params.sql, error: String(e) };
         }
     }
 };

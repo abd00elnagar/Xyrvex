@@ -54,6 +54,7 @@ const rpc = defineElectrobunRPC<AppSchema>("bun", {
 			tableFetchAll: async (): Promise<TableData> => {
 				return { columns: [], rows: [] };
 			},
+			terminalExec: dbHandlers.terminalExec,
 			tableCreate: async (): Promise<OpResult> => {
 				return { ok: false, error: "Not implemented" };
 			},

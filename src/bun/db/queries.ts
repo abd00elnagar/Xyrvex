@@ -23,3 +23,19 @@ export function getTableInfo(tableName: string): ColumnInfo[] {
         primaryKey: row.pk === 1
     }));
 }
+
+export function executeRawQuery(sql: string): any {
+    const db = getDatabase();
+    try {
+        const query = db.query(sql);
+        const rows = query.all() as any[];
+        return {
+            sql,
+            columns: rows.length > 0 ? Object.keys(rows[0]) : [],
+            rows: rows.map(r => Object.values(r)) as any[][],
+            changes: db.run("SELECT total_changes()").get() as number || 0
+        };
+    } catch (e) {
+        return { sql, error: String(e) };
+    }
+}
