@@ -64,7 +64,7 @@ export function DataTable({ tableName, data, onCellUpdate, onRowDelete }: DataTa
                         {data.columns.map((col, i) => (
                             <th
                                 key={i}
-                                className={`px-4 py-3 border-b border-neutral-800 text-[10px] uppercase tracking-wider font-bold whitespace-nowrap ${col.name === 'rowid' ? 'text-neutral-700 w-16' : 'text-neutral-500'
+                                className={`px-4 py-3 border-b border-neutral-800 text-[10px] uppercase tracking-wider font-bold whitespace-nowrap ${col.name === 'rowid' ? 'text-neutral-500 w-16' : 'text-neutral-500'
                                     }`}
                             >
                                 <div className="flex items-center space-x-2">

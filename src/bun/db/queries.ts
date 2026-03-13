@@ -33,7 +33,7 @@ export function executeRawQuery(sql: string): any {
             sql,
             columns: rows.length > 0 ? Object.keys(rows[0]) : [],
             rows: rows.map(r => Object.values(r)) as any[][],
-            changes: db.run("SELECT total_changes()").get() as number || 0
+            changes: (db.query("SELECT total_changes() as total").get() as any)?.total || 0
         };
     } catch (e) {
         return { sql, error: String(e) };
