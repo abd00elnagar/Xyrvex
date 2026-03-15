@@ -265,9 +265,11 @@ function App() {
 	const handleExecuteQuery = useCallback(async (sql: string) => {
 		console.log("[App] Executing query:", sql);
 		const result = await rpc.request.terminalExec({ sql });
-		// After execution, refresh table list in case of mutations
+		// After execution, refresh everything in case of mutations
 		const tableList = await rpc.request.tableList({});
 		setTables(tableList.tables);
+		loadObjects();
+
 		// If we're on a table, refresh it too
 		if (activeTable) {
 			try {
@@ -278,7 +280,7 @@ function App() {
 			}
 		}
 		return result;
-	}, [activeTable]);
+	}, [activeTable, loadObjects]);
 
 	const handleCreateTable = useCallback(async (tableName: string, columns: any[]): Promise<boolean> => {
 		console.log("[App] handleCreateTable:", tableName);
