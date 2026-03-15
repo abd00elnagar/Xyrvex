@@ -9,10 +9,10 @@ interface HeaderProps {
 
 export function Header({ dbName, dbPath, isDirty, isAutoSave, onSave, onToggleAutoSave }: HeaderProps) {
     return (
-        <header className="h-10 bg-neutral-950 border-b border-neutral-800 flex items-center px-4 flex-shrink-0">
+        <header className="h-10 bg-neutral-900 border-b border-neutral-800 flex items-center px-4 flex-shrink-0">
             <div className="flex items-center justify-between w-full">
                 <div className="flex items-center space-x-3 overflow-hidden">
-                    <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-[0.2em] bg-neutral-900 border border-neutral-800 px-2 py-0.5 rounded shadow-sm flex-shrink-0">
+                    <span className="text-xs font-bold text-neutral-500 uppercase tracking-[0.2em] bg-neutral-900 border border-neutral-800 px-2 py-0.5 rounded shadow-sm flex-shrink-0">
                         SQL Editor
                     </span>
                     <div className="h-4 w-[1px] bg-neutral-800 mx-1 flex-shrink-0" />
@@ -20,7 +20,7 @@ export function Header({ dbName, dbPath, isDirty, isAutoSave, onSave, onToggleAu
                         <div className="flex items-center">
                             <h1 className="text-sm font-bold text-neutral-200 tracking-tight">{dbName || "No Database"}</h1>
                             {dbPath && (
-                                <span className="ml-3 text-[10px] text-neutral-500 font-mono truncate max-w-[300px]" title={dbPath}>
+                                <span className="ml-3 text-xs text-neutral-500 font-mono truncate max-w-[300px]" title={dbPath}>
                                     {dbPath}
                                 </span>
                             )}
@@ -40,8 +40,8 @@ export function Header({ dbName, dbPath, isDirty, isAutoSave, onSave, onToggleAu
                         onClick={onToggleAutoSave}
                         className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all border duration-300 group ${
                             isAutoSave 
-                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
-                            : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-700'
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
+                            : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200'
                         }`}
                         title={isAutoSave ? "Autosave is ON" : "Autosave is OFF"}
                     >
@@ -51,7 +51,7 @@ export function Header({ dbName, dbPath, isDirty, isAutoSave, onSave, onToggleAu
                                 <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-40" />
                             )}
                         </div>
-                        <span className={`text-[10px] font-black uppercase tracking-[0.1em] transition-colors ${isAutoSave ? 'text-emerald-400' : 'text-neutral-500 group-hover:text-neutral-400'}`}>
+                        <span className={`text-xs font-black uppercase tracking-[0.1em] transition-colors ${isAutoSave ? 'text-emerald-500' : 'text-neutral-400 group-hover:text-neutral-200'}`}>
                             Auto-save
                         </span>
                     </button>

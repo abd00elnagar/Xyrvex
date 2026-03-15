@@ -8,9 +8,10 @@ interface DataTableProps {
     onRowInsert?: () => void;
     onAddColumn?: () => void;
     onDropColumn?: (columnName: string) => void;
+    fontSize?: number;
 }
 
-export function DataTable({ data, onCellUpdate, onRowDelete, onRowInsert, onAddColumn, onDropColumn }: DataTableProps) {
+export function DataTable({ data, onCellUpdate, onRowDelete, onRowInsert, onAddColumn, onDropColumn, fontSize }: DataTableProps) {
     const [editingCell, setEditingCell] = useState<{ rowIndex: number, colIndex: number } | null>(null);
     const [editValue, setEditValue] = useState<string>('');
     const inputRef = useRef<HTMLInputElement>(null);
@@ -52,11 +53,11 @@ export function DataTable({ data, onCellUpdate, onRowDelete, onRowInsert, onAddC
 
     const getTypeColor = (type: string) => {
         const t = type.toUpperCase();
-        if (t.includes('INT')) return 'text-blue-400 bg-blue-500/10 border-blue-500/30';
-        if (t.includes('CHAR') || t.includes('TEXT')) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
-        if (t.includes('REAL') || t.includes('DOUBLE') || t.includes('FLOAT') || t.includes('NUM')) return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
-        if (t.includes('BLOB')) return 'text-purple-400 bg-purple-500/10 border-purple-500/30';
-        return 'text-neutral-400 bg-neutral-800 border-neutral-700';
+        if (t.includes('INT')) return 'text-blue-500 bg-blue-500/10 border-blue-500/30';
+        if (t.includes('CHAR') || t.includes('TEXT')) return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30';
+        if (t.includes('REAL') || t.includes('DOUBLE') || t.includes('FLOAT') || t.includes('NUM')) return 'text-amber-500 bg-amber-500/10 border-amber-500/30';
+        if (t.includes('BLOB')) return 'text-purple-500 bg-purple-500/10 border-purple-500/30';
+        return 'text-neutral-300 bg-neutral-800/20 border-neutral-700/50';
     };
 
     if (!data.columns.length) {
@@ -70,16 +71,16 @@ export function DataTable({ data, onCellUpdate, onRowDelete, onRowInsert, onAddC
     return (
         <div className="flex-1 overflow-auto bg-neutral-900/30 custom-scrollbar relative">
             <table className="w-full text-left border-collapse min-w-max">
-                <thead className="sticky top-0 z-10 bg-neutral-950/90 backdrop-blur-md shadow-sm">
+                <thead className="sticky top-0 z-10 bg-neutral-900/90 backdrop-blur-md shadow-sm border-b border-neutral-800">
                     <tr>
                         {data.columns.map((col, i) => (
                             <th
                                 key={i}
-                                className={`px-4 py-3 border-b border-neutral-800 text-[10px] uppercase tracking-wider font-bold whitespace-nowrap ${col.name === 'rowid' ? 'text-neutral-400 w-16' : 'text-neutral-300'
+                                className={`px-4 py-3 border-b border-neutral-800 text-xs uppercase tracking-wider font-bold whitespace-nowrap ${col.name === 'rowid' ? 'text-neutral-200 w-16' : 'text-neutral-100'
                                     }`}
                             >
                                 <div className="flex items-center space-x-2">
-                                    <span className={col.name === 'rowid' ? 'opacity-50' : ''}>{col.name}</span>
+                                    <span>{col.name}</span>
                                     {col.name !== 'rowid' && (
                                         <div className="flex items-center space-x-2">
                                             <span className={`text-[8px] font-mono uppercase px-1.5 py-0.5 rounded border ${getTypeColor(col.type)} shadow-sm shadow-black/20`}>
@@ -124,22 +125,24 @@ export function DataTable({ data, onCellUpdate, onRowDelete, onRowInsert, onAddC
                         </tr>
                     ) : (
                         data.rows.map((row, rowIndex) => (
-                            <tr key={rowIndex} className="group hover:bg-white/5 transition-colors">
+                            <tr key={rowIndex} className="group hover:bg-neutral-800/10 transition-colors">
                                 {row.map((cell, colIndex) => {
                                     const isRowId = data.columns[colIndex].name === 'rowid';
                                     return (
                                         <td
                                             key={colIndex}
-                                            className={`px-4 py-2 text-sm border-r border-neutral-800/30 font-mono relative ${isRowId ? 'text-neutral-400 bg-black/20' : 'text-neutral-300'
+                                            className={`px-4 py-2 text-sm border-r border-neutral-800/30 font-mono relative ${isRowId ? 'text-neutral-300 bg-neutral-700/10' : 'text-neutral-100'
                                                 } ${editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex
                                                     ? 'bg-emerald-500/10' : ''
                                                 }`}
+                                            style={fontSize ? { fontSize: `${fontSize}px` } : undefined}
                                             onDoubleClick={() => handleDoubleClick(rowIndex, colIndex, cell)}
                                         >
                                             {editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex ? (
                                                 <input
                                                     ref={inputRef}
                                                     className="absolute inset-0 w-full h-full bg-emerald-500/20 text-emerald-400 outline-none px-4 font-mono z-20 border-2 border-emerald-500/50 shadow-[inset_0_0_12px_rgba(16,185,129,0.2)]"
+                                                    style={fontSize ? { fontSize: `${fontSize}px` } : undefined}
                                                     value={editValue}
                                                     onChange={(e) => setEditValue(e.target.value)}
                                                     onBlur={handleBlur}
@@ -175,15 +178,15 @@ export function DataTable({ data, onCellUpdate, onRowDelete, onRowInsert, onAddC
             </table>
             
             {/* Add Row Button at the bottom */}
-            <div className="p-4 flex justify-center border-t border-neutral-800/50">
+            <div className="p-4 flex justify-center border-t border-neutral-800/30 bg-neutral-900/10">
                 <button
                     onClick={onRowInsert}
-                    className="flex items-center space-x-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg text-xs font-bold transition-all border border-neutral-700/50 hover:border-emerald-500/30 group"
+                    className="flex items-center space-x-2 px-6 py-2.5 bg-neutral-800/10 hover:bg-emerald-500/10 text-neutral-400 hover:text-emerald-500 rounded-xl text-xs font-bold transition-all border border-neutral-800/50 hover:border-emerald-500/30 group shadow-sm active:scale-95"
                 >
-                    <svg className="w-3.5 h-3.5 text-neutral-500 group-hover:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    <svg className="w-4 h-4 text-neutral-500 group-hover:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                     </svg>
-                    <span>Add New Row</span>
+                    <span className="tracking-wide">Add New Row</span>
                 </button>
             </div>
         </div>

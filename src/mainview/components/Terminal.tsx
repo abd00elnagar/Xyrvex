@@ -8,9 +8,10 @@ interface TerminalProps {
     isFullPage?: boolean;
     initialSql?: string;
     onSqlChange?: (sql: string) => void;
+    fontSize?: number;
 }
 
-export function Terminal({ isOpen, onToggle, onExecute, isFullPage, initialSql, onSqlChange }: TerminalProps) {
+export function Terminal({ isOpen, onToggle, onExecute, isFullPage, initialSql, onSqlChange, fontSize }: TerminalProps) {
     const [sql, setSql] = useState("");
     const [result, setResult] = useState<TerminalResult | null>(null);
     const [isExecuting, setIsExecuting] = useState(false);
@@ -101,7 +102,7 @@ export function Terminal({ isOpen, onToggle, onExecute, isFullPage, initialSql, 
 
     const containerClasses = isFullPage 
         ? "flex-1 flex flex-col bg-neutral-900 overflow-hidden relative z-10 w-full h-full"
-        : `border-t border-neutral-800 bg-neutral-950/80 backdrop-blur-md relative z-20 flex flex-col ${isOpen ? 'shadow-[0_-10px_40px_rgba(0,0,0,0.5)]' : ''} ${!isDragging ? 'transition-all duration-300' : ''}`;
+        : `border-t border-neutral-800 bg-neutral-900/90 backdrop-blur-md relative z-20 flex flex-col ${isOpen ? 'shadow-[0_-10px_40px_rgba(0,0,0,0.5)]' : ''} ${!isDragging ? 'transition-all duration-300' : ''}`;
 
     return (
         <div 
@@ -121,12 +122,12 @@ export function Terminal({ isOpen, onToggle, onExecute, isFullPage, initialSql, 
             
             {!isFullPage && (
                 <div
-                    className="h-10 flex flex-shrink-0 items-center px-6 bg-neutral-800/30 cursor-pointer hover:bg-neutral-800/50 transition-colors group select-none"
+                    className="h-10 flex flex-shrink-0 items-center px-6 bg-neutral-800/20 cursor-pointer hover:bg-neutral-800/40 transition-colors group select-none"
                     onClick={onToggle}
                 >
                     <div className="flex items-center space-x-2 flex-1">
                         <div className={`w-1.5 h-1.5 rounded-full ${isOpen ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-neutral-600'}`} />
-                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest group-hover:text-neutral-200 transition-colors">SQL Console</span>
+                        <span className="text-xs font-bold text-neutral-300 uppercase tracking-widest group-hover:text-neutral-100 transition-colors">SQL Console</span>
                     </div>
                     <svg className={`w-4 h-4 text-neutral-500 transform transition-all duration-300 ${isOpen ? 'rotate-0' : 'rotate-180 opacity-50'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 13l-7 7-7-7" /></svg>
                 </div>
@@ -140,6 +141,7 @@ export function Terminal({ isOpen, onToggle, onExecute, isFullPage, initialSql, 
                     >
                         <textarea
                             className="w-full h-full bg-neutral-900/50 border border-neutral-800 rounded-xl p-4 pt-4 pr-32 text-sm font-mono text-emerald-400 focus:outline-none focus:border-emerald-500/30 transition-colors resize-none shadow-inner"
+                            style={fontSize ? { fontSize: `${fontSize}px` } : undefined}
                             placeholder="-- Enter SQL command..."
                             spellCheck={false}
                             value={sql}
@@ -167,8 +169,8 @@ export function Terminal({ isOpen, onToggle, onExecute, isFullPage, initialSql, 
                         <div className="w-16 h-1 rounded-full bg-neutral-700/50 group-hover:bg-emerald-500/50 transition-colors" />
                     </div>
 
-                    <div className="flex-1 bg-neutral-900/80 border border-neutral-800/50 rounded-lg p-3 overflow-hidden flex flex-col min-h-[100px]">
-                        <div className="text-[10px] text-neutral-500 uppercase font-bold tracking-tight mb-1 flex-shrink-0">Output</div>
+                    <div className="flex-1 bg-neutral-900/50 border border-neutral-800/30 rounded-lg p-3 overflow-hidden flex flex-col min-h-[100px]">
+                        <div className="text-xs text-neutral-400 uppercase font-bold tracking-tight mb-1 flex-shrink-0">Output</div>
                         <div className="flex-1 overflow-y-auto custom-scrollbar">
                             {result ? (
                                 <div className="text-xs font-mono">
@@ -179,7 +181,7 @@ export function Terminal({ isOpen, onToggle, onExecute, isFullPage, initialSql, 
                                             <div className="text-emerald-500/80">Success: {result.changes} changes made.</div>
                                             {result.rows && result.rows.length > 0 && result.columns && (
                                                 <div className="overflow-x-auto border border-neutral-800 rounded">
-                                                    <table className="min-w-full text-[10px] text-neutral-400">
+                                                    <table className="min-w-full text-xs text-neutral-400">
                                                         <thead>
                                                             <tr className="bg-neutral-800/50">
                                                                 {result.columns.map(c => <th key={c} className="px-2 py-1 text-left border-b border-neutral-800">{c}</th>)}

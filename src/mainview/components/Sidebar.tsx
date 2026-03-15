@@ -27,13 +27,14 @@ interface SidebarProps {
     // Resizing
     width: number;
     onResizeStart: () => void;
+    onOpenSettings: () => void;
 }
 
 export function Sidebar({ 
     tables, onSelectTable, activeTable, onOpenDb, onNewDb, onAddTable, onDropTable,
     objects, activeObject, onSelectObject, onRefreshObjects, onAddObject,
     snippets, activeSnippetId, onSelectSnippet, onAddSnippet, onImportSnippet, onExportSnippet, onDeleteSnippet, onRenameSnippet,
-    width, onResizeStart
+    width, onResizeStart, onOpenSettings
 }: SidebarProps) {
     const [isTablesOpen, setIsTablesOpen] = useState(true);
     const [isObjectsOpen, setIsObjectsOpen] = useState(true);
@@ -82,7 +83,7 @@ export function Sidebar({
                 <div className="space-y-1">
                     <button 
                         onClick={() => setIsTablesOpen(!isTablesOpen)}
-                        className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-widest hover:text-neutral-300 transition-colors group"
+                        className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-bold text-neutral-400 uppercase tracking-widest hover:text-neutral-200 transition-colors group"
                     >
                         <div className="flex items-center space-x-1.5">
                             <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isTablesOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -136,9 +137,9 @@ export function Sidebar({
                             {/* Add Table Button */}
                             <button
                                 onClick={onAddTable}
-                                className="w-full mt-1 flex items-center space-x-2 px-3 py-1.5 text-xs text-neutral-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors group"
+                                className="w-full mt-1 flex items-center space-x-2 px-3 py-1.5 text-xs text-neutral-400 hover:text-emerald-500 hover:bg-emerald-500/10 rounded transition-colors group"
                             >
-                                <svg className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-3.5 h-3.5 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
                                 <span>Add New Table</span>
@@ -151,7 +152,7 @@ export function Sidebar({
                 <div className="space-y-1 mt-4">
                     <button 
                         onClick={() => setIsSnippetsOpen(!isSnippetsOpen)}
-                        className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-widest hover:text-neutral-300 transition-colors group"
+                        className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-bold text-neutral-400 uppercase tracking-widest hover:text-neutral-200 transition-colors group"
                     >
                         <div className="flex items-center space-x-1.5">
                             <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isSnippetsOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -245,20 +246,20 @@ export function Sidebar({
                             <div className="flex space-x-1 mt-1">
                                 <button
                                     onClick={onAddSnippet}
-                                    className="flex-1 flex items-center justify-center space-x-1.5 px-2 py-1.5 text-xs text-neutral-500 hover:text-blue-400 hover:bg-blue-500/10 rounded transition-colors group"
+                                    className="flex-1 flex items-center justify-center space-x-1.5 px-2 py-1.5 text-xs text-neutral-400 hover:text-blue-500 hover:bg-blue-500/10 rounded transition-colors group"
                                     title="Add Snippet"
                                 >
-                                    <svg className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-3.5 h-3.5 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                     </svg>
                                     <span>Add</span>
                                 </button>
                                 <button
                                     onClick={onImportSnippet}
-                                    className="flex-1 flex items-center justify-center space-x-1.5 px-2 py-1.5 text-xs text-neutral-500 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors group"
+                                    className="flex-1 flex items-center justify-center space-x-1.5 px-2 py-1.5 text-xs text-neutral-400 hover:text-emerald-500 hover:bg-emerald-500/10 rounded transition-colors group"
                                     title="Import Snippet"
                                 >
-                                    <svg className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-3.5 h-3.5 opacity-80 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                     </svg>
                                     <span>Import</span>
@@ -272,7 +273,7 @@ export function Sidebar({
                 <div className="space-y-1 mt-4">
                     <button 
                         onClick={() => setIsObjectsOpen(!isObjectsOpen)}
-                        className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-widest hover:text-neutral-300 transition-colors group"
+                        className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-bold text-neutral-400 uppercase tracking-widest hover:text-neutral-200 transition-colors group"
                     >
                         <div className="flex items-center space-x-1.5">
                         <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isObjectsOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -324,7 +325,7 @@ export function Sidebar({
                                                             </button>
                                                         ))
                                                     ) : (
-                                                        <div className="px-3 py-1 text-[10px] text-neutral-600 italic">No views</div>
+                                                        <div className="px-3 py-1 text-xs text-neutral-600 italic">No views</div>
                                                     )
                                                 ) : (
                                                     // Triggers and Indexes nested by table
@@ -374,7 +375,7 @@ export function Sidebar({
                                                                                 </button>
                                                                             ))
                                                                         ) : (
-                                                                            <div className="px-3 py-1 text-[10px] text-neutral-600 italic">No {type}s</div>
+                                                                            <div className="px-3 py-1 text-xs text-neutral-600 italic">No {type}s</div>
                                                                         )}
                                                                     </div>
                                                                 )}
@@ -393,20 +394,30 @@ export function Sidebar({
 
             </div>
 
-            <div className="p-3 border-t border-neutral-900 bg-neutral-950/80 space-y-2">
+            <div className="p-3 border-t border-neutral-900 bg-neutral-950/50 space-y-2">
                 <button
                     onClick={onNewDb}
-                    className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-500 rounded text-xs font-semibold transition-all border border-emerald-500/20"
+                    className="w-full flex items-center justify-center space-x-2 py-2.5 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 rounded-xl text-xs font-bold transition-all border border-emerald-500/30 active:scale-95"
                 >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                     <span>New Database</span>
                 </button>
                 <button
                     onClick={onOpenDb}
-                    className="w-full flex items-center justify-center space-x-2 py-2 px-3 bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 rounded text-xs font-semibold transition-all border border-neutral-800"
+                    className="w-full flex items-center justify-center space-x-2 py-2.5 px-3 bg-neutral-800/10 hover:bg-neutral-800/20 text-neutral-100 hover:text-neutral-50 rounded-xl text-xs font-bold transition-all border border-neutral-800/50 active:scale-95"
                 >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
                     <span>Open Database</span>
+                </button>
+                <button
+                    onClick={onOpenSettings}
+                    className="w-full flex items-center justify-center space-x-2 py-2.5 px-3 bg-neutral-800/10 hover:bg-neutral-800/20 text-neutral-100 hover:text-neutral-50 rounded-xl text-xs font-bold transition-all border border-neutral-800/50 active:scale-95"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>Settings</span>
                 </button>
             </div>
         </aside>

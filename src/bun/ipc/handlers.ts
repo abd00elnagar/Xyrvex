@@ -2,8 +2,8 @@ import { Utils } from "electrobun/bun";
 import { openDatabase, getCurrentDbPath, getDatabase, closeDatabase } from "../db/connection";
 import { getTableNames, executeRawQuery, getTableData, insertDefaultRow } from "../db/queries";
 import { beginTransaction, commitAndContinue, commitOnly, rollbackTransaction } from "../db/transaction";
-import { loadSession, saveSession } from "../session";
-import type { OpenResult, OpResult, TerminalResult, SessionData, ColumnDef, TableData, SqlSnippet, DbObject } from "../../shared/types";
+import { loadSession, saveSession, loadSettings, saveSettings } from "../session";
+import type { OpenResult, OpResult, TerminalResult, SessionData, AppSettings, ColumnDef, TableData, SqlSnippet, DbObject } from "../../shared/types";
 import { basename, join } from "node:path";
 import { copyFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -303,6 +303,15 @@ export const createDbHandlers = (rpc: AppRPC) => ({
         const session = await loadSession();
         isAutoSave = session.autoSave;
         return session;
+    },
+
+    settingsGet: async (): Promise<AppSettings> => {
+        return await loadSettings();
+    },
+
+    settingsSave: async (params: { settings: Partial<AppSettings> }): Promise<OpResult> => {
+        await saveSettings(params.settings);
+        return { ok: true };
     },
 
     snippetsGet: async (params: { dbPath: string | null }): Promise<{ snippets: SqlSnippet[] }> => {

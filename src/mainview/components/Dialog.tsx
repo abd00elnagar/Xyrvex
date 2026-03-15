@@ -97,7 +97,7 @@ export function Dialog({
                 border: 'border-neutral-700',
                 glow: 'shadow-neutral-900',
                 bg: 'bg-neutral-800/10',
-                button: 'bg-neutral-700 hover:bg-neutral-600 text-white'
+                button: 'bg-neutral-700 hover:bg-neutral-600 text-neutral-50'
             };
         }
     };

@@ -78,7 +78,7 @@ export function Menu({ onAction }: MenuProps) {
                             <path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zM4 7h16M4 11h16m-16 4h16" />
                         </svg>
                     </div>
-                    <span className="text-[10px] font-bold text-neutral-300 tracking-wider">SQL EDITOR</span>
+                    <span className="text-xs font-bold text-neutral-300 tracking-wider">SQL EDITOR</span>
                 </div>
 
                 {menus.map((menu) => (
@@ -86,9 +86,9 @@ export function Menu({ onAction }: MenuProps) {
                         <button
                             onMouseEnter={() => activeMenu && setActiveMenu(menu.label!)}
                             onClick={() => setActiveMenu(activeMenu === menu.label ? null : menu.label!)}
-                            className={`px-3 py-1 rounded text-[11px] font-medium transition-colors ${
+                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                                 activeMenu === menu.label 
-                                ? 'bg-neutral-800 text-white' 
+                                ? 'bg-neutral-800 text-neutral-50' 
                                 : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200'
                             }`}
                         >
@@ -104,11 +104,11 @@ export function Menu({ onAction }: MenuProps) {
                                         <button
                                             key={item.label}
                                             onClick={() => handleAction(item.action)}
-                                            className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] text-neutral-300 hover:bg-emerald-500/10 hover:text-emerald-400 text-left transition-all group"
+                                            className="w-full flex items-center justify-between px-3 py-1.5 text-xs text-neutral-300 hover:bg-emerald-500/10 hover:text-emerald-400 text-left transition-all group"
                                         >
                                             <span className="font-medium">{item.label}</span>
                                             {item.shortcut && (
-                                                <span className="text-[9px] text-neutral-600 group-hover:text-emerald-600/60 font-mono tracking-tighter">
+                                                <span className="text-[0.65rem] text-neutral-600 group-hover:text-emerald-600/60 font-mono tracking-tighter">
                                                     {item.shortcut}
                                                 </span>
                                             )}

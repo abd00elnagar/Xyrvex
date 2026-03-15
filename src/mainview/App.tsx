@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Electroview } from "electrobun/view";
-import type { AppSchema, TableData, SqlSnippet, OpenResult, SessionData } from "../shared/types";
+import type { AppSchema, TableData, SqlSnippet, OpenResult, SessionData, AppSettings } from "../shared/types";
 import { Header } from "./components/Header";
 import { Sidebar } from './components/Sidebar';
 import { DataTable } from './components/DataTable';
@@ -11,6 +11,7 @@ import { AddColumnModal } from "./components/AddColumnModal";
 import { SaveAsModal } from "./components/SaveAsModal";
 import { Menu } from "./components/Menu";
 import { Dialog, DialogType } from "./components/Dialog";
+import { SettingsModal } from "./components/SettingsModal";
 import { ObjectExplorerView } from "./components/ObjectExplorerView";
 import type { DbObject } from "../shared/types";
 
@@ -45,6 +46,29 @@ function App() {
 	const [isAutoSave, setIsAutoSave] = useState(false);
 	const [undoStack, setUndoStack] = useState<any[]>([]);
 	const [redoStack, setRedoStack] = useState<any[]>([]);
+
+	// Settings State
+	const [settings, setSettings] = useState<AppSettings>({
+		theme: 'dark',
+		accentColor: 'emerald',
+		fontSizeSql: 14,
+		fontSizeTable: 13,
+		fontSizeUI: 13,
+		confirmDrop: true,
+		autoRefresh: true
+	});
+	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+	const handleSettingsChange = useCallback((newSettings: Partial<AppSettings>) => {
+		const updated = { ...settings, ...newSettings };
+		setSettings(updated);
+		document.documentElement.setAttribute('data-theme', updated.theme);
+		document.documentElement.setAttribute('data-accent', updated.accentColor);
+		if (updated.fontSizeUI) {
+			document.documentElement.style.setProperty('--font-size-ui', `${updated.fontSizeUI}px`);
+		}
+		rpc.request.settingsSave({ settings: updated });
+	}, [settings]);
 
 	// Snippets State
 	const [snippets, setSnippets] = useState<SqlSnippet[]>([]);
@@ -184,6 +208,15 @@ function App() {
 		}
 	}, [activeObject]);
 
+	const loadTables = useCallback(async () => {
+		try {
+			const res = await rpc.request.tableList({});
+			setTables(res.tables);
+		} catch (err) {
+			console.error("[App] loadTables failed:", err);
+		}
+	}, []);
+
 	const handleCellUpdate = useCallback(async (column: string, value: any, rowId: number) => {
 		if (!activeTable) return;
 		
@@ -230,27 +263,33 @@ function App() {
 	const handleDeleteRow = useCallback(async (rowId: number) => {
 		if (!activeTable) return;
 		
-		showDialog({
-			type: 'confirm',
-			title: 'Delete Row',
-			message: 'Are you sure you want to delete this row?',
-			confirmLabel: 'Delete',
-			onConfirm: async () => {
-				try {
-					const result = await rpc.request.rowDelete({
-						tableName: activeTable,
-						rowId
-					});
-					if (result.ok) {
-						const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
-						setTableData(data);
-					}
-				} catch (err) {
-					console.error("[App] Row deletion failed:", err);
+		const executeDelete = async () => {
+			try {
+				const result = await rpc.request.rowDelete({
+					tableName: activeTable,
+					rowId
+				});
+				if (result.ok) {
+					const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
+					setTableData(data);
 				}
+			} catch (err) {
+				console.error("[App] Row deletion failed:", err);
 			}
-		});
-	}, [activeTable, showDialog]);
+		};
+
+		if (settings.confirmDrop) {
+			showDialog({
+				type: 'confirm',
+				title: 'Delete Row',
+				message: 'Are you sure you want to delete this row?',
+				confirmLabel: 'Delete',
+				onConfirm: executeDelete
+			});
+		} else {
+			executeDelete();
+		}
+	}, [activeTable, showDialog, settings.confirmDrop]);
 
 	const handleInsertRow = useCallback(async () => {
 		if (!activeTable) return;
@@ -303,22 +342,19 @@ function App() {
 	const handleExecuteQuery = useCallback(async (sql: string) => {
 		console.log("[App] Executing query:", sql);
 		const result = await rpc.request.terminalExec({ sql });
-		// After execution, refresh everything in case of mutations
-		const tableList = await rpc.request.tableList({});
-		setTables(tableList.tables);
-		loadObjects();
 
-		// If we're on a table, refresh it too
-		if (activeTable) {
-			try {
-				const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
-				setTableData(data);
-			} catch (e) {
-				console.error("Refresh failed:", e);
+		if (settings.autoRefresh) {
+			// After execution, refresh everything in case of mutations
+			loadTables();
+			loadObjects();
+
+			// If we're on a table, refresh it too
+			if (activeTable) {
+				fetchTableData(activeTable);
 			}
 		}
 		return result;
-	}, [activeTable, loadObjects]);
+	}, [activeTable, loadObjects, settings.autoRefresh]);
 
 	const handleCreateTable = useCallback(async (tableName: string, columns: any[]): Promise<boolean> => {
 		console.log("[App] handleCreateTable:", tableName);
@@ -339,28 +375,34 @@ function App() {
 	}, [fetchTableData]);
 
 	const handleDropTable = useCallback(async (tableName: string) => {
-		showDialog({
-			type: 'confirm',
-			title: 'Drop Table',
-			message: `Are you sure you want to DROP TABLE "${tableName}"? This action cannot be undone.`,
-			confirmLabel: 'Drop Table',
-			onConfirm: async () => {
-				try {
-					const result = await rpc.request.tableDrop({ tableName });
-					if (result.ok) {
-						const res = await rpc.request.tableList({});
-						setTables(res.tables);
-						if (activeTable === tableName) {
-							setActiveTable(null);
-							setTableData({ columns: [], rows: [] });
-						}
+		const executeDrop = async () => {
+			try {
+				const result = await rpc.request.tableDrop({ tableName });
+				if (result.ok) {
+					const res = await rpc.request.tableList({});
+					setTables(res.tables);
+					if (activeTable === tableName) {
+						setActiveTable(null);
+						setTableData({ columns: [], rows: [] });
 					}
-				} catch (err) {
-					console.error("[App] Drop table failed:", err);
 				}
+			} catch (err) {
+				console.error("[App] Drop table failed:", err);
 			}
-		});
-	}, [activeTable, showDialog]);
+		};
+
+		if (settings.confirmDrop) {
+			showDialog({
+				type: 'confirm',
+				title: 'Drop Table',
+				message: `Are you sure you want to DROP TABLE "${tableName}"? This action cannot be undone.`,
+				confirmLabel: 'Drop Table',
+				onConfirm: executeDrop
+			});
+		} else {
+			executeDrop();
+		}
+	}, [activeTable, showDialog, settings.confirmDrop, loadTables]);
 
 	const handleAddColumn = useCallback(async (column: any): Promise<boolean> => {
 		if (!activeTable) return false;
@@ -382,23 +424,30 @@ function App() {
 
 	const handleDropColumn = useCallback(async (columnName: string) => {
 		if (!activeTable) return;
-		showDialog({
-			type: 'confirm',
-			title: 'Drop Column',
-			message: `Are you sure you want to drop column "${columnName}"? This action cannot be undone.`,
-			onConfirm: async () => {
-				try {
-					const result = await rpc.request.columnDrop({ tableName: activeTable, columnName });
-					if (result.ok) {
-						const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
-						setTableData(data);
-					}
-				} catch (err) {
-					console.error("[App] Drop column failed:", err);
+		
+		const executeDrop = async () => {
+			try {
+				const result = await rpc.request.columnDrop({ tableName: activeTable, columnName });
+				if (result.ok) {
+					const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
+					setTableData(data);
 				}
+			} catch (err) {
+				console.error("[App] Drop column failed:", err);
 			}
-		});
-	}, [activeTable, showDialog]);
+		};
+
+		if (settings.confirmDrop) {
+			showDialog({
+				type: 'confirm',
+				title: 'Drop Column',
+				message: `Are you sure you want to drop column "${columnName}"? This action cannot be undone.`,
+				onConfirm: executeDrop
+			});
+		} else {
+			executeDrop();
+		}
+	}, [activeTable, showDialog, settings.confirmDrop]);
 
 	const handleSave = useCallback(async () => {
 		console.log("[App] handleSave");
@@ -468,28 +517,34 @@ function App() {
 	}, [tables]);
 
 	const handleDropObject = async (type: string, name: string) => {
-		showDialog({
-			type: 'confirm',
-			title: `Drop ${type.charAt(0).toUpperCase() + type.slice(1)}`,
-			message: `Are you sure you want to drop the ${type} "${name}"? This action cannot be undone.`,
-			onConfirm: async () => {
-				try {
-					const result = await rpc.request.objectDrop({ type, name });
-					if (result.ok) {
-						setActiveObject(null);
-						loadObjects();
-					} else {
-						showDialog({
-							type: 'error',
-							title: 'Drop Failed',
-							message: result.error || 'Check console for details'
-						});
-					}
-				} catch (err) {
-					console.error("[App] objectDrop failed:", err);
+		const executeDrop = async () => {
+			try {
+				const result = await rpc.request.objectDrop({ type, name });
+				if (result.ok) {
+					setActiveObject(null);
+					loadObjects();
+				} else {
+					showDialog({
+						type: 'error',
+						title: 'Drop Failed',
+						message: result.error || 'Check console for details'
+					});
 				}
+			} catch (err) {
+				console.error("[App] objectDrop failed:", err);
 			}
-		});
+		};
+
+		if (settings.confirmDrop) {
+			showDialog({
+				type: 'confirm',
+				title: `Drop ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+				message: `Are you sure you want to drop the ${type} "${name}"? This action cannot be undone.`,
+				onConfirm: executeDrop
+			});
+		} else {
+			executeDrop();
+		}
 	};
 
 	const handleCopySql = (sql: string) => {
@@ -701,6 +756,7 @@ function App() {
 				setActiveSnippetId(null);
 				setActiveObject(null);
 				setTableData({ columns: [], rows: [] });
+				loadTables();
 				loadObjects();
 				setIsNewDbModalOpen(false);
 				
@@ -757,6 +813,15 @@ function App() {
 		rpc.addMessageListener('dbDirtyChanged', onDbDirtyChanged);
 		rpc.addMessageListener('dbSaved', onDbSaved);
 		rpc.addMessageListener('dialogRequest', onDialogRequest);
+
+		rpc.request.settingsGet({}).then((loaded: AppSettings) => {
+			setSettings(loaded);
+			document.documentElement.setAttribute('data-theme', loaded.theme);
+			document.documentElement.setAttribute('data-accent', loaded.accentColor);
+			if (loaded.fontSizeUI) {
+				document.documentElement.style.setProperty('--font-size-ui', `${loaded.fontSizeUI}px`);
+			}
+		});
 
 		// Initial session load (ONCE)
 		rpc.request.sessionGet({}).then((session: SessionData) => {
@@ -849,6 +914,7 @@ function App() {
 					onAddObject={handleAddObject}
 					width={sidebarWidth}
 					onResizeStart={handleSidebarResizeStart}
+					onOpenSettings={() => setIsSettingsOpen(true)}
 				/>
 
 				{/* Main Content Area */}
@@ -867,6 +933,7 @@ function App() {
 							initialSql={snippets.find(s => s.id === activeSnippetId)?.code || ""}
 							onSqlChange={(sql) => handleSnippetCodeChange(activeSnippetId, sql)}
 							onExecute={handleExecuteQuery}
+							fontSize={settings.fontSizeSql}
 						/>
 					) : activeObject ? (
 						<ObjectExplorerView 
@@ -882,6 +949,7 @@ function App() {
 							onRowInsert={handleInsertRow}
 							onAddColumn={() => setIsAddColumnModalOpen(true)}
 							onDropColumn={handleDropColumn}
+							fontSize={settings.fontSizeTable}
 						/>
 					) : (
 						<div className="flex-1 flex flex-col items-center justify-center text-neutral-500 slide-in">
@@ -905,6 +973,7 @@ function App() {
 							isOpen={isTerminalOpen}
 							onToggle={() => setIsTerminalOpen(!isTerminalOpen)}
 							onExecute={handleExecuteQuery}
+							fontSize={settings.fontSizeSql}
 						/>
 					)}
 
@@ -919,6 +988,13 @@ function App() {
 						onClose={() => setIsSaveAsModalOpen(false)}
 						onSave={confirmSaveAs}
 						currentDbName={dbName}
+					/>
+
+					<SettingsModal
+						isOpen={isSettingsOpen}
+						onClose={() => setIsSettingsOpen(false)}
+						settings={settings}
+						onSettingsChange={handleSettingsChange}
 					/>
 
 					<CreateTableModal

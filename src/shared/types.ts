@@ -27,6 +27,8 @@ export interface AppSchema {
             objectDrop: { params: { type: string; name: string }; response: OpResult };
             snippetsGet: { params: { dbPath: string | null }; response: { snippets: SqlSnippet[] } };
             snippetsSave: { params: { dbPath: string | null; snippets: SqlSnippet[] }; response: OpResult };
+            settingsGet: { params: {}; response: AppSettings };
+            settingsSave: { params: { settings: Partial<AppSettings> }; response: OpResult };
         };
         messages: {};
     };
@@ -90,6 +92,16 @@ export interface TerminalResult {
     rows?: Row[];
     changes?: number;
     error?: string;
+}
+
+export interface AppSettings {
+    theme: 'dark' | 'black' | 'light';
+    accentColor: 'emerald' | 'blue' | 'purple';
+    fontSizeSql: number;
+    fontSizeTable: number;
+    fontSizeUI: number;
+    confirmDrop: boolean;
+    autoRefresh: boolean;
 }
 
 export interface SessionData {
