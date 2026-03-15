@@ -51,6 +51,15 @@ export function DataTable({ tableName, data, onCellUpdate, onRowDelete, onRowIns
         }
     };
 
+    const getTypeColor = (type: string) => {
+        const t = type.toUpperCase();
+        if (t.includes('INT')) return 'text-blue-400 bg-blue-500/10 border-blue-500/30';
+        if (t.includes('CHAR') || t.includes('TEXT')) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
+        if (t.includes('REAL') || t.includes('DOUBLE') || t.includes('FLOAT') || t.includes('NUM')) return 'text-amber-400 bg-amber-500/10 border-amber-500/30';
+        if (t.includes('BLOB')) return 'text-purple-400 bg-purple-500/10 border-purple-500/30';
+        return 'text-neutral-400 bg-neutral-800 border-neutral-700';
+    };
+
     if (!data.columns.length) {
         return (
             <div className="flex-1 flex items-center justify-center text-neutral-500 italic text-sm">
@@ -67,16 +76,18 @@ export function DataTable({ tableName, data, onCellUpdate, onRowDelete, onRowIns
                         {data.columns.map((col, i) => (
                             <th
                                 key={i}
-                                className={`px-4 py-3 border-b border-neutral-800 text-[10px] uppercase tracking-wider font-bold whitespace-nowrap ${col.name === 'rowid' ? 'text-neutral-500 w-16' : 'text-neutral-500'
+                                className={`px-4 py-3 border-b border-neutral-800 text-[10px] uppercase tracking-wider font-bold whitespace-nowrap ${col.name === 'rowid' ? 'text-neutral-600 w-16' : 'text-neutral-500'
                                     }`}
                             >
                                 <div className="flex items-center space-x-2">
-                                    <span>{col.name}</span>
+                                    <span className={col.name === 'rowid' ? 'opacity-50' : ''}>{col.name}</span>
                                     {col.name !== 'rowid' && (
-                                        <span className="text-[8px] opacity-30 font-mono lower">{col.type}</span>
+                                        <span className={`text-[8px] font-mono uppercase px-1.5 py-0.5 rounded border ${getTypeColor(col.type)} shadow-sm shadow-black/20`}>
+                                            {col.type || 'RAW'}
+                                        </span>
                                     )}
                                     {col.primaryKey && (
-                                        <span className="text-emerald-500/50" title="Primary Key">🔑</span>
+                                        <span className="text-amber-500 filter drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]" title="Primary Key">🔑</span>
                                     )}
                                 </div>
                             </th>
@@ -109,16 +120,16 @@ export function DataTable({ tableName, data, onCellUpdate, onRowDelete, onRowIns
                                     return (
                                         <td
                                             key={colIndex}
-                                            className={`px-4 py-2 text-sm border-r border-neutral-800/30 font-mono relative ${isRowId ? 'text-neutral-700 bg-neutral-950/20' : 'text-neutral-300'
+                                            className={`px-4 py-2 text-sm border-r border-neutral-800/30 font-mono relative ${isRowId ? 'text-neutral-600 bg-black/20' : 'text-neutral-300'
                                                 } ${editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex
-                                                    ? 'bg-emerald-500/5' : ''
+                                                    ? 'bg-emerald-500/10' : ''
                                                 }`}
                                             onDoubleClick={() => handleDoubleClick(rowIndex, colIndex, cell)}
                                         >
                                             {editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex ? (
                                                 <input
                                                     ref={inputRef}
-                                                    className="absolute inset-0 w-full h-full bg-emerald-500/10 text-emerald-400 outline-none px-4 font-mono z-20"
+                                                    className="absolute inset-0 w-full h-full bg-emerald-500/20 text-emerald-400 outline-none px-4 font-mono z-20 border-2 border-emerald-500/50 shadow-[inset_0_0_12px_rgba(16,185,129,0.2)]"
                                                     value={editValue}
                                                     onChange={(e) => setEditValue(e.target.value)}
                                                     onBlur={handleBlur}
@@ -127,7 +138,7 @@ export function DataTable({ tableName, data, onCellUpdate, onRowDelete, onRowIns
                                             ) : (
                                                 <div className="truncate max-w-[300px]" title={String(cell)}>
                                                     {cell === null ? (
-                                                        <span className="text-neutral-700 italic opacity-50">NULL</span>
+                                                        <span className="text-amber-500/80 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded text-[10px] select-none border border-amber-500/20 tracking-widest">NULL</span>
                                                     ) : (
                                                         String(cell)
                                                     )}

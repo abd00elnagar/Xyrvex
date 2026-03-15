@@ -40,15 +40,22 @@ export function Header({ dbName, dbPath, isDirty, isAutoSave, onSave, onToggleAu
                 <div className="flex items-center space-x-4">
                     <button 
                         onClick={onToggleAutoSave}
-                        className={`flex items-center space-x-1.5 px-2 py-1 rounded transition-all border ${
+                        className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all border duration-300 group ${
                             isAutoSave 
-                            ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
-                            : 'bg-neutral-900 border-neutral-800 text-neutral-500 grayscale opacity-60'
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
+                            : 'bg-neutral-900 border-neutral-800 text-neutral-500 hover:border-neutral-700'
                         }`}
                         title={isAutoSave ? "Autosave is ON" : "Autosave is OFF"}
                     >
-                        <div className={`w-1.5 h-1.5 rounded-full ${isAutoSave ? 'bg-emerald-500' : 'bg-neutral-600'}`} />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">Auto-save</span>
+                        <div className="relative">
+                            <div className={`w-2 h-2 rounded-full transition-all duration-500 ${isAutoSave ? 'bg-emerald-500 scale-110 shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-neutral-600'}`} />
+                            {isAutoSave && (
+                                <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-40" />
+                            )}
+                        </div>
+                        <span className={`text-[10px] font-black uppercase tracking-[0.1em] transition-colors ${isAutoSave ? 'text-emerald-400' : 'text-neutral-500 group-hover:text-neutral-400'}`}>
+                            Auto-save
+                        </span>
                     </button>
                 </div>
             </div>

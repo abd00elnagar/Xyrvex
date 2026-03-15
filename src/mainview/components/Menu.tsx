@@ -42,7 +42,7 @@ export function Menu({ onAction }: MenuProps) {
             label: 'View',
             submenu: [
                 { label: 'Refresh Table', action: 'refresh', shortcut: 'Ctrl+R' },
-                { label: 'Toggle Terminal', action: 'toggle-terminal', shortcut: 'Ctrl+`' },
+                { label: 'Toggle SQL Console', action: 'toggle-terminal', shortcut: 'Ctrl+`' },
                 { label: 'Toggle Autosave', action: 'toggle-autosave' },
             ]
         }
