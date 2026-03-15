@@ -5,6 +5,7 @@ export default {
 		name: "Xyrvex",
 		identifier: "com.xyrvex.app",
 		version: "1.0.0",
+		icon: "src/mainview/public/favicon.ico",
 	},
 	build: {
 		// Vite builds to dist/, we copy from there

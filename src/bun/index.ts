@@ -81,6 +81,7 @@ const mainWindow = new BrowserWindow({
 	title: "Xyrvex",
 	url,
 	rpc,
+	icon: "views://mainview/favicon.ico",
 	frame: {
 		width: 1200,
 		height: 800,

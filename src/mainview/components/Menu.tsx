@@ -67,30 +67,20 @@ export function Menu({ onAction }: MenuProps) {
     };
 
     return (
-        <nav 
+        <nav
             ref={menuRef}
             className="h-8 bg-neutral-950 border-b border-neutral-800 flex items-center px-4 select-none z-50 relative"
         >
-            <div className="flex items-center space-x-1">
-                <div className="flex items-center space-x-2 mr-4 group">
-                    <div className="w-4 h-4 bg-emerald-500 rounded flex items-center justify-center p-0.5 shadow-lg shadow-emerald-500/20 group-hover:scale-110 transition-transform">
-                        <svg className="w-full h-full text-neutral-900" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zM4 7h16M4 11h16m-16 4h16" />
-                        </svg>
-                    </div>
-                    <span className="text-xs font-bold text-neutral-300 tracking-wider">XYRVEX</span>
-                </div>
-
+            <div className="flex items-center">
                 {menus.map((menu) => (
                     <div key={menu.label} className="relative">
                         <button
                             onMouseEnter={() => activeMenu && setActiveMenu(menu.label!)}
                             onClick={() => setActiveMenu(activeMenu === menu.label ? null : menu.label!)}
-                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                                activeMenu === menu.label 
-                                ? 'bg-neutral-800 text-neutral-50' 
+                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${activeMenu === menu.label
+                                ? 'bg-neutral-800 text-neutral-50'
                                 : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200'
-                            }`}
+                                }`}
                         >
                             {menu.label}
                         </button>
