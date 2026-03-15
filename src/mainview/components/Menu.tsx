@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 
 interface MenuItem {
-    label: string;
+    label?: string;
     action?: string;
     shortcut?: string;
     type?: 'separator';
@@ -84,8 +84,8 @@ export function Menu({ onAction }: MenuProps) {
                 {menus.map((menu) => (
                     <div key={menu.label} className="relative">
                         <button
-                            onMouseEnter={() => activeMenu && setActiveMenu(menu.label)}
-                            onClick={() => setActiveMenu(activeMenu === menu.label ? null : menu.label)}
+                            onMouseEnter={() => activeMenu && setActiveMenu(menu.label!)}
+                            onClick={() => setActiveMenu(activeMenu === menu.label ? null : menu.label!)}
                             className={`px-3 py-1 rounded text-[11px] font-medium transition-colors ${
                                 activeMenu === menu.label 
                                 ? 'bg-neutral-800 text-white' 

@@ -24,6 +24,9 @@ export interface AppSchema {
             dbOpenByPath: { params: { path: string }; response: OpenResult };
             autosaveSet: { params: { enabled: boolean }; response: OpResult };
             sessionGet: { params: {}; response: SessionData };
+            snippetExport: { params: { snippet: SqlSnippet }; response: OpResult };
+            snippetsGet: { params: { dbPath: string | null }; response: { snippets: SqlSnippet[] } };
+            snippetsSave: { params: { dbPath: string | null; snippets: SqlSnippet[] }; response: OpResult };
         };
         messages: {};
     };
@@ -83,6 +86,7 @@ export interface SessionData {
     lastOpenedPath: string | null;
     windowMaximized: boolean;
     autoSave: boolean;
+    snippets?: Record<string, SqlSnippet[]>;
 }
 
 export interface CellEditRecord {
@@ -95,4 +99,10 @@ export interface CellEditRecord {
     undoParams: (string | number | null)[];
     redoSql: string;
     redoParams: (string | number | null)[];
+}
+
+export interface SqlSnippet {
+    id: string;
+    name: string;
+    code: string;
 }

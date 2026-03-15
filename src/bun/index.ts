@@ -1,5 +1,5 @@
-import Electrobun, { BrowserWindow, Updater, ApplicationMenu, defineElectrobunRPC } from "electrobun/bun";
-import type { AppSchema, OpenResult, OpResult, TableData, TerminalResult, SessionData } from "../shared/types";
+import Electrobun, { BrowserWindow, Updater, Utils, defineElectrobunRPC } from "electrobun/bun";
+import type { AppSchema } from "../shared/types";
 
 process.on('uncaughtException', (err) => {
 	console.error('UNCAUGHT EXCEPTION:', err);
@@ -63,6 +63,10 @@ rpc.setRequestHandler({
 	tableDrop: dbHandlers.tableDrop,
 	columnAdd: dbHandlers.columnAdd,
 	columnDrop: dbHandlers.columnDrop,
+	// Snippet handling
+	snippetExport: dbHandlers.snippetExport,
+	snippetsGet: dbHandlers.snippetsGet,
+	snippetsSave: dbHandlers.snippetsSave,
 });
 
 // Create the main application window

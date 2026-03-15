@@ -1,12 +1,11 @@
-import Electrobun, { Utils } from "electrobun/bun";
+import { Utils } from "electrobun/bun";
 import { openDatabase, getCurrentDbPath, getDatabase, closeDatabase } from "../db/connection";
 import { getTableNames, executeRawQuery, getTableData, insertDefaultRow } from "../db/queries";
 import { beginTransaction, commitAndContinue, commitOnly, rollbackTransaction } from "../db/transaction";
 import { loadSession, saveSession } from "../session";
-import type { AppRPC, OpenResult, OpResult, TerminalResult, SessionData, ColumnDef, TableData } from "../../shared/types";
+import type { AppRPC, OpenResult, OpResult, TerminalResult, SessionData, ColumnDef, TableData, SqlSnippet } from "../../shared/types";
 import { basename, join } from "node:path";
-import { copyFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 // We'll pass the RPC instance from index.ts to enable push messages
 // Keep track of internal state for dirty tracking and auto-save
@@ -275,6 +274,67 @@ export const createDbHandlers = (rpc: AppRPC) => ({
         const session = await loadSession();
         isAutoSave = session.autoSave;
         return session;
+    },
+
+    snippetsGet: async (params: { dbPath: string | null }): Promise<{ snippets: SqlSnippet[] }> => {
+        const session = await loadSession();
+        if (!params.dbPath || !session.snippets) return { snippets: [] };
+        return { snippets: session.snippets[params.dbPath] || [] };
+    },
+
+    snippetsSave: async (params: { dbPath: string | null; snippets: SqlSnippet[] }): Promise<OpResult> => {
+        if (!params.dbPath) return { ok: false, error: "No database open" };
+        const session = await loadSession();
+        const currentSnippets = session.snippets || {};
+        currentSnippets[params.dbPath] = params.snippets;
+        await saveSession({ snippets: currentSnippets });
+        return { ok: true };
+    },
+
+    snippetExport: async (params: { snippet: any }): Promise<OpResult> => {
+        console.log("[dbHandlers] snippetExport triggered with:", params.snippet?.name);
+        try {
+            const { snippet } = params;
+            if (!snippet || !snippet.code) return { ok: false, error: "Invalid snippet" };
+
+            const finalFilename = snippet.name.endsWith('.sql') ? snippet.name : `${snippet.name}.sql`;
+
+            console.log("[dbHandlers] Opening directory dialog for export...");
+            const filePaths = await Utils.openFileDialog({
+                startingFolder: Utils.paths.home,
+                canChooseFiles: false,
+                canChooseDirectory: true,
+                allowsMultipleSelection: false
+            });
+
+            if (!filePaths || filePaths.length === 0 || !filePaths[0]) {
+                return { ok: false, error: "No location selected" };
+            }
+
+            const folderPath = filePaths[0].trim();
+            const destPath = join(folderPath, finalFilename);
+
+            if (existsSync(destPath)) {
+                const { response } = await Utils.showMessageBox({
+                    type: "warning",
+                    title: "File Exists",
+                    message: `A file named "${finalFilename}" already exists.`,
+                    detail: "Do you want to replace it?",
+                    buttons: ["Replace", "Cancel"],
+                    defaultId: 1,
+                    cancelId: 1
+                });
+                if (response === 1) {
+                    return { ok: false, error: "Aborted by user" };
+                }
+            }
+
+            await Bun.write(destPath, snippet.code);
+            return { ok: true };
+        } catch (e) {
+            console.error(`[dbHandlers] snippetExport Error: ${e}`);
+            return { ok: false, error: String(e) };
+        }
     },
 
     tableList: async (): Promise<{ tables: string[] }> => {

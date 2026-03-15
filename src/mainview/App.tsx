@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Electroview } from "electrobun/view";
-import type { AppSchema, TableData } from "../shared/types";
+import type { AppSchema, TableData, SqlSnippet } from "../shared/types";
 import { Header } from "./components/Header";
 import { Sidebar } from './components/Sidebar';
 import { DataTable } from './components/DataTable';
@@ -43,9 +43,40 @@ function App() {
 	const [undoStack, setUndoStack] = useState<any[]>([]);
 	const [redoStack, setRedoStack] = useState<any[]>([]);
 
+	// Snippets State
+	const [snippets, setSnippets] = useState<SqlSnippet[]>([]);
+	const [activeSnippetId, setActiveSnippetId] = useState<string | null>(null);
+	const lastLoadedDbPathForSnippets = useRef<string | null>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		console.log("[App] File selected for import:", file.name);
+		const reader = new FileReader();
+		reader.onload = async (event) => {
+			const content = event.target?.result as string;
+			const newSnippet: SqlSnippet = {
+				id: Math.random().toString(36).substring(2, 9),
+				name: file.name.replace(/\.sql$/i, ''),
+				code: content
+			};
+
+			setSnippets(prev => [...prev, newSnippet]);
+			handleSelectSnippet(newSnippet.id);
+			alert("Successfully imported snippet: " + newSnippet.name);
+			
+			// Reset input
+			if (fileInputRef.current) fileInputRef.current.value = '';
+		};
+		reader.readAsText(file);
+	};
+
 	const handleSelectTable = useCallback(async (tableName: string) => {
 		console.log(`[App] handleSelectTable: "${tableName}"`);
 		setActiveTable(tableName);
+		setActiveSnippetId(null); // Deselect snippet when a table is selected
 		try {
 			const data = await rpc.request.tableFetchAll({ tableName });
 			setTableData(data);
@@ -89,7 +120,7 @@ function App() {
 				setRedoStack([]); // Clear redo branch on new action
 
 				// Refresh data
-				const data = await rpc.request.tableFetchAll({ tableName: activeTable });
+				const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
 				setTableData(data);
 			}
 		} catch (err) {
@@ -107,7 +138,7 @@ function App() {
 				rowId
 			});
 			if (result.ok) {
-				const data = await rpc.request.tableFetchAll({ tableName: activeTable });
+				const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
 				setTableData(data);
 			}
 		} catch (err) {
@@ -120,7 +151,7 @@ function App() {
 		try {
 			const result = await rpc.request.rowInsert({ tableName: activeTable });
 			if (result.ok) {
-				const data = await rpc.request.tableFetchAll({ tableName: activeTable });
+				const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
 				setTableData(data);
 			}
 		} catch (err) {
@@ -172,7 +203,7 @@ function App() {
 		// If we're on a table, refresh it too
 		if (activeTable) {
 			try {
-				const data = await rpc.request.tableFetchAll({ tableName: activeTable });
+				const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
 				setTableData(data);
 			} catch (e) {
 				console.error("Refresh failed:", e);
@@ -223,7 +254,7 @@ function App() {
 			const result = await rpc.request.columnAdd({ tableName: activeTable, column });
 			if (result.ok) {
 				setIsAddColumnModalOpen(false);
-				const data = await rpc.request.tableFetchAll({ tableName: activeTable });
+				const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
 				setTableData(data);
 				return true;
 			}
@@ -240,7 +271,7 @@ function App() {
 		try {
 			const result = await rpc.request.columnDrop({ tableName: activeTable, columnName });
 			if (result.ok) {
-				const data = await rpc.request.tableFetchAll({ tableName: activeTable });
+				const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
 				setTableData(data);
 			}
 		} catch (err) {
@@ -271,6 +302,59 @@ function App() {
 		}
 	}, [isAutoSave]);
 
+	// --- Snippets Handlers ---
+
+	const handleSelectSnippet = useCallback((id: string) => {
+		setActiveSnippetId(id);
+		setActiveTable(null); // Deselect table when snippet is selected
+		// Optionally close the bottom terminal if standard UX implies it
+		setIsTerminalOpen(false);
+	}, []);
+
+	const handleAddSnippet = useCallback(() => {
+		const newSnippet: SqlSnippet = {
+			id: crypto.randomUUID(),
+			name: `Query ${snippets.length + 1}`,
+			code: "-- Write your SQL query here\n"
+		};
+		setSnippets(prev => [...prev, newSnippet]);
+		handleSelectSnippet(newSnippet.id);
+	}, [snippets.length, handleSelectSnippet]);
+
+	const handleImportSnippet = useCallback(() => {
+		fileInputRef.current?.click();
+	}, []);
+
+	const handleExportSnippet = useCallback(async (snippet: SqlSnippet) => {
+		try {
+			const result = await rpc.request.snippetExport({ snippet });
+			if (!result.ok && result.error !== "No location selected" && result.error !== "Aborted by user") {
+				alert("Export failed: " + result.error);
+			}
+		} catch (err) {
+			console.error("[App] Snippet export failed", err);
+		}
+	}, []);
+
+	const handleDeleteSnippet = useCallback((id: string) => {
+		if (confirm("Are you sure you want to delete this snippet?")) {
+			setSnippets(prev => prev.filter(s => s.id !== id));
+			if (activeSnippetId === id) {
+				setActiveSnippetId(null);
+			}
+		}
+	}, [activeSnippetId]);
+
+    const handleRenameSnippet = useCallback((id: string, newName: string) => {
+        setSnippets(prev => prev.map(s => s.id === id ? { ...s, name: newName } : s));
+    }, []);
+
+	const handleSnippetCodeChange = useCallback((id: string, newCode: string) => {
+		setSnippets(prev => prev.map(s => s.id === id ? { ...s, code: newCode } : s));
+	}, []);
+	
+	// --- End Snippets Handlers ---
+
 	const handleUndo = useCallback(async () => {
 		if (undoStack.length === 0) return;
 		console.log("[App] handleUndo");
@@ -281,7 +365,7 @@ function App() {
 				setUndoStack(prev => prev.slice(0, -1));
 				setRedoStack(prev => [...prev, record]);
 				if (activeTable === record.tableName) {
-					const data = await rpc.request.tableFetchAll({ tableName: activeTable });
+					const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
 					setTableData(data);
 				}
 			}
@@ -300,7 +384,7 @@ function App() {
 				setRedoStack(prev => prev.slice(0, -1));
 				setUndoStack(prev => [...prev, record]);
 				if (activeTable === record.tableName) {
-					const data = await rpc.request.tableFetchAll({ tableName: activeTable });
+					const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
 					setTableData(data);
 				}
 			}
@@ -418,6 +502,18 @@ function App() {
 				setActiveTable(null);
 				setTableData({ columns: [], rows: [] });
 				setIsNewDbModalOpen(false);
+				
+				if (payload.dbPath) {
+					rpc.request.snippetsGet({ dbPath: payload.dbPath }).then(res => {
+						setSnippets(res.snippets);
+						setActiveSnippetId(null);
+						lastLoadedDbPathForSnippets.current = payload.dbPath;
+					});
+				} else {
+					setSnippets([]);
+					setActiveSnippetId(null);
+					lastLoadedDbPathForSnippets.current = null;
+				}
 			} else {
 				console.error("[App] dbOpened error:", payload.error);
 				alert(`Failed to open database: ${payload.error}`);
@@ -441,8 +537,15 @@ function App() {
 						setDbName(res.dbName);
 						setDbPath(res.dbPath || null);
 						setTables(res.tables);
+						
+						rpc.request.snippetsGet({ dbPath: session.lastOpenedPath }).then(snipRes => {
+							setSnippets(snipRes.snippets);
+							lastLoadedDbPathForSnippets.current = session.lastOpenedPath;
+						});
 					}
 				});
+			} else {
+				lastLoadedDbPathForSnippets.current = null;
 			}
 		});
 
@@ -455,9 +558,28 @@ function App() {
 		};
 	}, []);
 
+	// Auto-save snippets when they change
+	useEffect(() => {
+		if (dbPath && lastLoadedDbPathForSnippets.current === dbPath) {
+			const timeout = setTimeout(() => {
+				rpc.request.snippetsSave({ dbPath, snippets }).catch(err => {
+					console.error("[App] Failed to auto-save snippets:", err);
+				});
+			}, 1000); // 1-second debounce
+			return () => clearTimeout(timeout);
+		}
+	}, [snippets, dbPath]);
+
 	return (
 		<div className="flex flex-col h-full bg-neutral-900 overflow-hidden font-sans selection:bg-emerald-500/30">
 			<Menu onAction={handleMenuAction} />
+			<input 
+				type="file" 
+				ref={fileInputRef} 
+				style={{ display: 'none' }} 
+				accept=".sql,.txt"
+				onChange={handleFileImport}
+			/>
 			<Header
 				dbName={dbName}
 				dbPath={dbPath}
@@ -476,6 +598,14 @@ function App() {
 					onNewDb={handleNewDb}
 					onAddTable={() => setIsCreateTableModalOpen(true)}
 					onDropTable={handleDropTable}
+					snippets={snippets}
+					activeSnippetId={activeSnippetId}
+					onSelectSnippet={handleSelectSnippet}
+					onAddSnippet={handleAddSnippet}
+					onImportSnippet={handleImportSnippet}
+					onExportSnippet={handleExportSnippet}
+					onDeleteSnippet={handleDeleteSnippet}
+					onRenameSnippet={handleRenameSnippet}
 				/>
 
 				{/* Main Content Area */}
@@ -484,16 +614,22 @@ function App() {
 					<div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
 					<div className="flex-1 flex flex-col overflow-hidden relative z-10">
-						{activeTable ? (
-							<DataTable
-								tableName={activeTable}
-								data={tableData}
-								onCellUpdate={handleCellUpdate}
-								onRowDelete={handleRowDelete}
-								onRowInsert={handleRowInsert}
-								onAddColumn={() => setIsAddColumnModalOpen(true)}
-								onDropColumn={handleDropColumn}
+						{activeSnippetId ? (
+							<Terminal
+								isOpen={true}
+								isFullPage={true}
+								initialSql={snippets.find(s => s.id === activeSnippetId)?.code || ""}
+								onSqlChange={(code) => handleSnippetCodeChange(activeSnippetId, code)}
+								onExecute={handleExecuteQuery}
 							/>
+						) : activeTable ? (
+							<DataTable
+							data={tableData}
+							onCellUpdate={handleCellUpdate}
+							onRowDelete={handleRowDelete}
+							onRowInsert={handleRowInsert}
+							onAddColumn={() => setIsAddColumnModalOpen(true)}
+						/>
 						) : (
 							<div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
 								<div className="w-20 h-20 bg-neutral-800/50 rounded-2xl flex items-center justify-center mb-6 border border-neutral-700/50 shadow-xl">
@@ -521,11 +657,14 @@ function App() {
 						)}
 					</div>
 
-					<Terminal
-						isOpen={isTerminalOpen}
-						onToggle={() => setIsTerminalOpen(!isTerminalOpen)}
-						onExecute={handleExecuteQuery}
-					/>
+					{/* Hide bottom terminal if a snippet is active (full page terminal) */}
+					{!activeSnippetId && (
+						<Terminal
+							isOpen={isTerminalOpen}
+							onToggle={() => setIsTerminalOpen(!isTerminalOpen)}
+							onExecute={handleExecuteQuery}
+						/>
+					)}
 
 					<NewDbModal
 						isOpen={isNewDbModalOpen}

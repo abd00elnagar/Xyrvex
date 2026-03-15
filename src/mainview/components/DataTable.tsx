@@ -2,16 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import type { TableData } from '../../shared/types';
 
 interface DataTableProps {
-    tableName: string;
     data: TableData;
     onCellUpdate?: (column: string, value: any, rowId: number) => void;
     onRowDelete?: (rowId: number) => void;
     onRowInsert?: () => void;
     onAddColumn?: () => void;
-    onDropColumn?: (columnName: string) => void;
 }
 
-export function DataTable({ tableName, data, onCellUpdate, onRowDelete, onRowInsert, onAddColumn, onDropColumn }: DataTableProps) {
+export function DataTable({ data, onCellUpdate, onRowDelete, onRowInsert, onAddColumn }: DataTableProps) {
     const [editingCell, setEditingCell] = useState<{ rowIndex: number, colIndex: number } | null>(null);
     const [editValue, setEditValue] = useState<string>('');
     const inputRef = useRef<HTMLInputElement>(null);

@@ -3,39 +3,67 @@ import type { TerminalResult } from "../../shared/types";
 
 interface TerminalProps {
     isOpen: boolean;
-    onToggle: () => void;
+    onToggle?: () => void;
     onExecute: (sql: string) => Promise<TerminalResult>;
+    isFullPage?: boolean;
+    initialSql?: string;
+    onSqlChange?: (sql: string) => void;
 }
 
-export function Terminal({ isOpen, onToggle, onExecute }: TerminalProps) {
+export function Terminal({ isOpen, onToggle, onExecute, isFullPage, initialSql, onSqlChange }: TerminalProps) {
     const [sql, setSql] = useState("");
     const [result, setResult] = useState<TerminalResult | null>(null);
     const [isExecuting, setIsExecuting] = useState(false);
     
-    // Resize state
+    // Resize state for global terminal
     const [height, setHeight] = useState<number | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const dragRef = useRef(false);
 
+    // Resize state for internal split pane
+    const [editorHeightPercent, setEditorHeightPercent] = useState(50);
+    const editorDragRef = useRef(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
+        if (initialSql !== undefined) {
+            setSql(initialSql);
+            setResult(null); // Clear previous results when switching snippets
+        }
+    }, [initialSql]);
+
+    useEffect(() => {
+        if (isFullPage) return; // Full page doesn't use the resize height state natively
         if (!isOpen) {
             setHeight(null); // Reset when closed
         } else if (height === null) {
             setHeight(window.innerHeight * 0.5); // Initial open height: 50%
         }
-    }, [isOpen, height]);
+    }, [isOpen, height, isFullPage]);
 
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
-            if (!dragRef.current) return;
-            // Calculate new height from bottom of the screen. Subtract 40px for header/margins if needed.
-            const newHeight = Math.max(150, Math.min(window.innerHeight - 80, window.innerHeight - e.clientY));
-            setHeight(newHeight);
+            if (dragRef.current) {
+                // Calculate new height from bottom of the screen. Subtract 40px for header/margins if needed.
+                const newHeight = Math.max(150, Math.min(window.innerHeight - 80, window.innerHeight - e.clientY));
+                setHeight(newHeight);
+            }
+            if (editorDragRef.current && containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                const y = e.clientY - rect.top;
+                let newPercent = (y / rect.height) * 100;
+                newPercent = Math.max(10, Math.min(newPercent, 90));
+                setEditorHeightPercent(newPercent);
+            }
         };
         const handleMouseUp = () => {
             if (dragRef.current) {
                 dragRef.current = false;
                 setIsDragging(false);
+                document.body.style.cursor = 'default';
+            }
+            if (editorDragRef.current) {
+                editorDragRef.current = false;
                 document.body.style.cursor = 'default';
             }
         };
@@ -61,16 +89,26 @@ export function Terminal({ isOpen, onToggle, onExecute }: TerminalProps) {
         }
     };
 
-    const containerStyle = {
+    const handleSqlChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const val = e.target.value;
+        setSql(val);
+        if (onSqlChange) onSqlChange(val);
+    };
+
+    const containerStyle = isFullPage ? {} : {
         height: isOpen ? (height ? `${height}px` : '50vh') : '40px'
     };
 
+    const containerClasses = isFullPage 
+        ? "flex-1 flex flex-col bg-neutral-900 overflow-hidden relative z-10 w-full h-full"
+        : `border-t border-neutral-800 bg-neutral-950/80 backdrop-blur-md relative z-20 flex flex-col ${isOpen ? 'shadow-[0_-10px_40px_rgba(0,0,0,0.5)]' : ''} ${!isDragging ? 'transition-all duration-300' : ''}`;
+
     return (
         <div 
-            className={`border-t border-neutral-800 bg-neutral-950/80 backdrop-blur-md relative z-20 flex flex-col ${isOpen ? 'shadow-[0_-10px_40px_rgba(0,0,0,0.5)]' : ''} ${!isDragging ? 'transition-all duration-300' : ''}`}
+            className={containerClasses}
             style={containerStyle}
         >
-            {isOpen && (
+            {!isFullPage && isOpen && (
                 <div 
                     className="absolute top-0 left-0 w-full h-1.5 cursor-row-resize z-50 hover:bg-emerald-500/50 transition-colors"
                     onMouseDown={() => {
@@ -81,26 +119,31 @@ export function Terminal({ isOpen, onToggle, onExecute }: TerminalProps) {
                 />
             )}
             
-            <div
-                className="h-10 flex flex-shrink-0 items-center px-6 bg-neutral-800/30 cursor-pointer hover:bg-neutral-800/50 transition-colors group select-none"
-                onClick={onToggle}
-            >
-                <div className="flex items-center space-x-2 flex-1">
-                    <div className={`w-1.5 h-1.5 rounded-full ${isOpen ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-neutral-600'}`} />
-                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest group-hover:text-neutral-200 transition-colors">SQL Console</span>
+            {!isFullPage && (
+                <div
+                    className="h-10 flex flex-shrink-0 items-center px-6 bg-neutral-800/30 cursor-pointer hover:bg-neutral-800/50 transition-colors group select-none"
+                    onClick={onToggle}
+                >
+                    <div className="flex items-center space-x-2 flex-1">
+                        <div className={`w-1.5 h-1.5 rounded-full ${isOpen ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-neutral-600'}`} />
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest group-hover:text-neutral-200 transition-colors">SQL Console</span>
+                    </div>
+                    <svg className={`w-4 h-4 text-neutral-500 transform transition-all duration-300 ${isOpen ? 'rotate-0' : 'rotate-180 opacity-50'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 13l-7 7-7-7" /></svg>
                 </div>
-                <svg className={`w-4 h-4 text-neutral-500 transform transition-all duration-300 ${isOpen ? 'rotate-0' : 'rotate-180 opacity-50'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 13l-7 7-7-7" /></svg>
-            </div>
+            )}
 
-            {isOpen && (
-                <div className="p-5 flex-1 flex flex-col space-y-3 min-h-0 animate-in fade-in duration-300">
-                    <div className="relative flex-1 group min-h-[100px] max-h-[50%]">
+            {(isFullPage || isOpen) && (
+                <div ref={containerRef} className="p-5 flex-1 flex flex-col min-h-0 animate-in fade-in duration-300 relative">
+                    <div 
+                        className="relative group min-h-[100px] flex-shrink-0"
+                        style={{ flexBasis: `${editorHeightPercent}%` }}
+                    >
                         <textarea
                             className="w-full h-full bg-neutral-900/50 border border-neutral-800 rounded-xl p-4 pt-4 pr-32 text-sm font-mono text-emerald-400 focus:outline-none focus:border-emerald-500/30 transition-colors resize-none shadow-inner"
                             placeholder="-- Enter SQL command..."
                             spellCheck={false}
                             value={sql}
-                            onChange={(e) => setSql(e.target.value)}
+                            onChange={handleSqlChange}
                         />
                         <div className="absolute right-3 bottom-3 flex space-x-2">
                             <button
@@ -113,7 +156,18 @@ export function Terminal({ isOpen, onToggle, onExecute }: TerminalProps) {
                         </div>
                     </div>
 
-                    <div className="flex-1 bg-neutral-900/80 border border-neutral-800/50 rounded-lg p-3 overflow-hidden flex flex-col min-h-[150px]">
+                    {/* Draggable Divider */}
+                    <div 
+                        className="h-4 my-1 cursor-row-resize flex-shrink-0 flex items-center justify-center -mx-2 z-10 group"
+                        onMouseDown={() => {
+                            editorDragRef.current = true;
+                            document.body.style.cursor = 'row-resize';
+                        }}
+                    >
+                        <div className="w-16 h-1 rounded-full bg-neutral-700/50 group-hover:bg-emerald-500/50 transition-colors" />
+                    </div>
+
+                    <div className="flex-1 bg-neutral-900/80 border border-neutral-800/50 rounded-lg p-3 overflow-hidden flex flex-col min-h-[100px]">
                         <div className="text-[10px] text-neutral-500 uppercase font-bold tracking-tight mb-1 flex-shrink-0">Output</div>
                         <div className="flex-1 overflow-y-auto custom-scrollbar">
                             {result ? (

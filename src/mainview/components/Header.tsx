@@ -1,5 +1,3 @@
-import type { AppRPC } from "../../shared/types";
-
 interface HeaderProps {
     dbName: string;
     dbPath: string | null;
