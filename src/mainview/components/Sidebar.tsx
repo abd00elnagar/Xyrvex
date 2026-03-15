@@ -24,12 +24,16 @@ interface SidebarProps {
     onExportSnippet: (snippet: SqlSnippet) => void;
     onDeleteSnippet: (id: string) => void;
     onRenameSnippet: (id: string, newName: string) => void;
+    // Resizing
+    width: number;
+    onResizeStart: () => void;
 }
 
 export function Sidebar({ 
     tables, onSelectTable, activeTable, onOpenDb, onNewDb, onAddTable, onDropTable,
     objects, activeObject, onSelectObject, onRefreshObjects, onAddObject,
-    snippets, activeSnippetId, onSelectSnippet, onAddSnippet, onImportSnippet, onExportSnippet, onDeleteSnippet, onRenameSnippet
+    snippets, activeSnippetId, onSelectSnippet, onAddSnippet, onImportSnippet, onExportSnippet, onDeleteSnippet, onRenameSnippet,
+    width, onResizeStart
 }: SidebarProps) {
     const [isTablesOpen, setIsTablesOpen] = useState(true);
     const [isObjectsOpen, setIsObjectsOpen] = useState(true);
@@ -60,7 +64,18 @@ export function Sidebar({
     };
 
     return (
-        <aside className="w-64 border-r border-neutral-800 flex flex-col bg-neutral-950 flex-shrink-0">
+        <aside 
+            className="border-r border-neutral-800 flex flex-col bg-neutral-950 flex-shrink-0 relative group/sidebar"
+            style={{ width: `${width}px` }}
+        >
+            {/* Resize Handle */}
+            <div 
+                className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-50 hover:bg-emerald-500/50 transition-colors"
+                onMouseDown={(e) => {
+                    e.preventDefault();
+                    onResizeStart();
+                }}
+            />
             <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
                 
                 {/* Tables Group */}

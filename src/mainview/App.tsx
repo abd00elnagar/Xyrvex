@@ -56,6 +56,10 @@ function App() {
 	const [objects, setObjects] = useState<DbObject[]>([]);
 	const [activeObject, setActiveObject] = useState<DbObject | null>(null);
 
+	// Sidebar Resizing State
+	const [sidebarWidth, setSidebarWidth] = useState(256);
+	const isResizingSidebar = useRef(false);
+
 	// Dialog State
 	const [dialog, setDialog] = useState<{
 		isOpen: boolean;
@@ -134,8 +138,34 @@ function App() {
 			console.error("[App] Error fetching table data:", err);
 		}
 	}, []);
+	// Sidebar resizing effects
+	useEffect(() => {
+		const handleMouseMove = (e: MouseEvent) => {
+			if (!isResizingSidebar.current) return;
+			const newWidth = Math.max(160, Math.min(600, e.clientX));
+			setSidebarWidth(newWidth);
+			document.body.style.cursor = 'col-resize';
+		};
 
+		const handleMouseUp = () => {
+			if (isResizingSidebar.current) {
+				isResizingSidebar.current = false;
+				document.body.style.cursor = 'default';
+			}
+		};
 
+		window.addEventListener('mousemove', handleMouseMove);
+		window.addEventListener('mouseup', handleMouseUp);
+		return () => {
+			window.removeEventListener('mousemove', handleMouseMove);
+			window.removeEventListener('mouseup', handleMouseUp);
+		};
+	}, []);
+
+	const handleSidebarResizeStart = useCallback(() => {
+		isResizingSidebar.current = true;
+		document.body.style.cursor = 'col-resize';
+	}, []);
 
 	const loadObjects = useCallback(async () => {
 		try {
@@ -817,6 +847,8 @@ function App() {
 					onSelectObject={handleSelectObject}
 					onRefreshObjects={loadObjects}
 					onAddObject={handleAddObject}
+					width={sidebarWidth}
+					onResizeStart={handleSidebarResizeStart}
 				/>
 
 				{/* Main Content Area */}
