@@ -66,11 +66,27 @@ export function Terminal({ isOpen, onToggle, onExecute }: TerminalProps) {
                                 {result.error ? (
                                     <span className="text-red-400">{result.error}</span>
                                 ) : (
-                                    <div className="text-neutral-300">
-                                        <div className="text-emerald-500/80 mb-1">Success: {result.changes} changes made.</div>
-                                        {result.rows && result.rows.length > 0 && (
-                                            <div className="text-neutral-400">
-                                                Returned {result.rows.length} rows with {result.columns?.length} columns.
+                                    <div className="text-neutral-300 space-y-2">
+                                        <div className="text-emerald-500/80">Success: {result.changes} changes made.</div>
+                                        {result.rows && result.rows.length > 0 && result.columns && (
+                                            <div className="overflow-x-auto border border-neutral-800 rounded">
+                                                <table className="min-w-full text-[10px] text-neutral-400">
+                                                    <thead>
+                                                        <tr className="bg-neutral-800/50">
+                                                            {result.columns.map(c => <th key={c} className="px-2 py-1 text-left border-b border-neutral-800">{c}</th>)}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {result.rows.slice(0, 50).map((row, i) => (
+                                                            <tr key={i} className="border-b border-neutral-800/30">
+                                                                {row.map((cell, j) => <td key={j} className="px-2 py-1">{String(cell)}</td>)}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                                {result.rows.length > 50 && (
+                                                    <div className="p-1 px-2 text-[9px] text-neutral-600 italic italic">Showing first 50 rows...</div>
+                                                )}
                                             </div>
                                         )}
                                     </div>

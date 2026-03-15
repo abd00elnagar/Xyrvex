@@ -1,5 +1,5 @@
 import { getDatabase } from "./connection";
-import type { ColumnInfo, TableData } from "../../shared/types";
+import type { ColumnInfo, TableData, ColumnDef } from "../../shared/types";
 
 export function getTableNames(): string[] {
     const db = getDatabase();
@@ -28,11 +28,12 @@ export function executeRawQuery(sql: string): any {
     const db = getDatabase();
     try {
         const query = db.query(sql);
-        const rows = query.all() as any[];
+        const columns = query.columnNames;
+        const rows = query.values() as any[][];
         return {
             sql,
-            columns: rows.length > 0 ? Object.keys(rows[0]) : [],
-            rows: rows.map(r => Object.values(r)) as any[][],
+            columns,
+            rows,
             changes: (db.query("SELECT total_changes() as total").get() as any)?.total || 0
         };
     } catch (e) {
@@ -46,7 +47,9 @@ export function getTableData(tableName: string): TableData {
 
     try {
         // We explicitly include rowid for editing/deletion
-        const rows = db.query(`SELECT rowid, * FROM "${tableName}"`).all() as any[];
+        // Using .values() guarantees that column order matches SELECT clause
+        // SELECT rowid, * results in [rowid, col1, col2, ...]
+        const rows = db.query(`SELECT rowid, * FROM "${tableName}"`).values() as any[][];
 
         return {
             // Prepend rowid column metadata
@@ -54,10 +57,95 @@ export function getTableData(tableName: string): TableData {
                 { cid: -1, name: 'rowid', type: 'INTEGER', notNull: true, primaryKey: false, defaultValue: null },
                 ...columns
             ],
-            rows: rows.map(r => Object.values(r))
+            rows
         };
     } catch (e) {
         console.error(`Error fetching data for ${tableName}:`, e);
         return { columns, rows: [] };
     }
+}
+export function insertDefaultRow(tableName: string): void {
+    const db = getDatabase();
+    const columns = getTableInfo(tableName);
+    
+    // Filter out rowid and any columns that are auto-increment (which have no default in PRAGMA but handle themselves)
+    // Actually, SQLite's INSERT INTO ... DEFAULT VALUES handles most cases, 
+    // but the original plan wanted explicit default resolution for NOT NULL columns.
+    
+    // Let's try explicit INSERT to control defaults
+    const colsToInsert: string[] = [];
+    const values: any[] = [];
+    const placeholders: string[] = [];
+
+    for (const col of columns) {
+        if (col.primaryKey && col.type.toUpperCase() === 'INTEGER') continue; // Skip autoincrement PKs
+        
+        colsToInsert.push(`"${col.name}"`);
+        placeholders.push('?');
+
+        if (col.defaultValue !== null) {
+            // Strip quotes if any (e.g. 'val' -> val)
+            let val = col.defaultValue;
+            if ((val.startsWith("'") && val.endsWith("'")) || (val.startsWith('"') && val.endsWith('"'))) {
+                val = val.substring(1, val.length -1);
+            }
+            values.push(val);
+        } else if (col.notNull) {
+            // Provide sensible defaults for NOT NULL columns
+            const type = col.type.toUpperCase();
+            if (type.includes("INT") || type.includes("FLOAT") || type.includes("DOUBLE") || type.includes("DECIMAL") || type.includes("NUMERIC")) {
+                values.push(0);
+            } else {
+                values.push("");
+            }
+        } else {
+            values.push(null);
+        }
+    }
+
+    if (colsToInsert.length === 0) {
+        db.run(`INSERT INTO "${tableName}" DEFAULT VALUES;`);
+    } else {
+        const sql = `INSERT INTO "${tableName}" (${colsToInsert.join(', ')}) VALUES (${placeholders.join(', ')});`;
+        db.prepare(sql).run(...values);
+    }
+}
+
+export function createTable(tableName: string, columns: ColumnDef[]): void {
+    const db = getDatabase();
+    const colStrings = columns.map(col => {
+        let s = `"${col.name}" ${col.type}`;
+        if (col.primaryKey) s += " PRIMARY KEY";
+        if (col.autoIncrement) s += " AUTOINCREMENT";
+        if (col.notNull) s += " NOT NULL";
+        if (col.defaultValue !== undefined && col.defaultValue !== null) {
+            s += ` DEFAULT '${col.defaultValue}'`;
+        }
+        return s;
+    });
+
+    const sql = `CREATE TABLE "${tableName}" (${colStrings.join(", ")});`;
+    db.run(sql);
+}
+
+export function dropTable(tableName: string): void {
+    const db = getDatabase();
+    db.run(`DROP TABLE "${tableName}";`);
+}
+
+export function addColumn(tableName: string, column: ColumnDef): void {
+    const db = getDatabase();
+    let s = `"${column.name}" ${column.type}`;
+    if (column.notNull) s += " NOT NULL";
+    if (column.defaultValue !== undefined && column.defaultValue !== null) {
+        s += ` DEFAULT '${column.defaultValue}'`;
+    }
+    
+    db.run(`ALTER TABLE "${tableName}" ADD COLUMN ${s};`);
+}
+
+export function dropColumn(tableName: string, columnName: string): void {
+    const db = getDatabase();
+    // SQLite 3.35.0+ supports DROP COLUMN
+    db.run(`ALTER TABLE "${tableName}" DROP COLUMN "${columnName}";`);
 }

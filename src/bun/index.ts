@@ -42,51 +42,25 @@ const dbHandlers = createDbHandlers(rpc);
 
 rpc.setRequestHandler({
 	dbOpen: dbHandlers.dbOpen,
+	dbOpenByPath: dbHandlers.dbOpenByPath,
 	dbCreate: dbHandlers.dbCreate,
-	dbSave: async (): Promise<OpResult> => {
-		return { ok: false, error: "Not implemented" };
-	},
-	dbSaveAs: async (): Promise<OpResult> => {
-		return { ok: false, error: "Not implemented" };
-	},
-	dbClose: async (): Promise<OpResult> => {
-		return { ok: false, error: "Not implemented" };
-	},
+	dbSave: dbHandlers.dbSave,
+	dbSaveAs: dbHandlers.dbSaveAs,
+	dbClose: dbHandlers.dbClose,
 	tableList: dbHandlers.tableList,
 	tableFetchAll: dbHandlers.tableFetchAll,
 	cellUpdate: dbHandlers.cellUpdate,
 	rowDelete: dbHandlers.rowDelete,
 	terminalExec: dbHandlers.terminalExec,
-	tableCreate: async (): Promise<OpResult> => {
-		return { ok: false, error: "Not implemented" };
-	},
-	tableDrop: async (): Promise<OpResult> => {
-		return { ok: false, error: "Not implemented" };
-	},
-	columnAdd: async (): Promise<OpResult> => {
-		return { ok: false, error: "Not implemented" };
-	},
-	columnDrop: async (): Promise<OpResult> => {
-		return { ok: false, error: "Not implemented" };
-	},
-	rowInsert: async (): Promise<OpResult> => {
-		return { ok: false, error: "Not implemented" };
-	},
-	rowDelete: async (): Promise<OpResult> => {
-		return { ok: false, error: "Not implemented" };
-	},
-	cellUpdate: async (): Promise<OpResult> => {
-		return { ok: false, error: "Not implemented" };
-	},
-	cellExec: async (): Promise<OpResult> => {
-		return { ok: false, error: "Not implemented" };
-	},
-	autosaveSet: async (): Promise<OpResult> => {
-		return { ok: false, error: "Not implemented" };
-	},
-	sessionGet: async (): Promise<SessionData> => {
-		return { lastOpenedPath: null, windowMaximized: false, autoSave: false };
-	},
+	cellExec: dbHandlers.cellExec,
+	rowInsert: dbHandlers.rowInsert,
+	autosaveSet: dbHandlers.autosaveSet,
+	sessionGet: dbHandlers.sessionGet,
+	// Schema editing handlers
+	tableCreate: dbHandlers.tableCreate,
+	tableDrop: dbHandlers.tableDrop,
+	columnAdd: dbHandlers.columnAdd,
+	columnDrop: dbHandlers.columnDrop,
 });
 
 // Create the main application window
@@ -181,7 +155,7 @@ ApplicationMenu.on("application-menu-clicked", (event: any) => {
 	const action = event.data?.action;
 	if (action) {
 		console.log(`Menu clicked: ${action}`);
-		rpc.send.menuAction({ action });
+		(rpc.send as any).menuAction({ action });
 	}
 });
 
@@ -195,7 +169,9 @@ setTimeout(() => {
 }, 500);
 
 Electrobun.events.on("before-quit", async () => {
-	// Graceful shutdown logic will go here
+	console.log("SQL Editor is shutting down...");
+	// Session saving is already handled by individual RPC actions that change state,
+	// but we can ensure it's saved here too if needed.
 });
 
 console.log("SQL Editor started with HMR and correct RPC setup!");

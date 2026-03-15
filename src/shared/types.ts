@@ -1,4 +1,7 @@
 // shared/types.ts
+import type { ElectrobunRPC } from "electrobun/shared";
+export type AppRPC = ElectrobunRPC<AppSchema, any>;
+
 export interface AppSchema {
     bun: {
         requests: {
@@ -18,6 +21,7 @@ export interface AppSchema {
             cellUpdate: { params: { tableName: string; columnName: string; rowId: number; value: string | number | null }; response: OpResult };
             cellExec: { params: { sql: string; params: (string | number | null)[] }; response: OpResult };
             terminalExec: { params: { sql: string }; response: TerminalResult };
+            dbOpenByPath: { params: { path: string }; response: OpenResult };
             autosaveSet: { params: { enabled: boolean }; response: OpResult };
             sessionGet: { params: {}; response: SessionData };
         };
@@ -79,4 +83,16 @@ export interface SessionData {
     lastOpenedPath: string | null;
     windowMaximized: boolean;
     autoSave: boolean;
+}
+
+export interface CellEditRecord {
+    tableName: string;
+    columnName: string;
+    rowId: number;
+    oldValue: any;
+    newValue: any;
+    undoSql: string;
+    undoParams: (string | number | null)[];
+    redoSql: string;
+    redoParams: (string | number | null)[];
 }

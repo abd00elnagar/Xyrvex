@@ -1,10 +1,24 @@
-import { Utils } from "electrobun/bun";
-import { openDatabase, getCurrentDbPath, isValidDatabase } from "../db/connection";
-import { getTableNames, executeRawQuery, getTableData } from "../db/queries";
-import type { AppRPC, OpenResult, OpResult, TerminalResult } from "../../shared/types";
+import Electrobun, { Utils } from "electrobun/bun";
+import { openDatabase, getCurrentDbPath, getDatabase, closeDatabase } from "../db/connection";
+import { getTableNames, executeRawQuery, getTableData, insertDefaultRow } from "../db/queries";
+import { beginTransaction, commitAndContinue, commitOnly, rollbackTransaction } from "../db/transaction";
+import { loadSession, saveSession } from "../session";
+import type { AppRPC, OpenResult, OpResult, TerminalResult, SessionData, ColumnDef, TableData } from "../../shared/types";
 import { basename, join } from "node:path";
+import { copyFile } from "node:fs/promises";
 
 // We'll pass the RPC instance from index.ts to enable push messages
+// Keep track of internal state for dirty tracking and auto-save
+let isAutoSave = false;
+let isDirty = false;
+
+function markDirty(rpc: AppRPC, dirty: boolean) {
+    if (isDirty !== dirty) {
+        isDirty = dirty;
+        rpc.send.dbDirtyChanged({ isDirty });
+    }
+}
+
 export const createDbHandlers = (rpc: AppRPC) => ({
     dbOpen: async (): Promise<OpenResult> => {
         console.log("[dbHandlers] dbOpen: Opening file dialog...");
@@ -16,22 +30,22 @@ export const createDbHandlers = (rpc: AppRPC) => ({
             allowedFileTypes: "db;sqlite;sqlite3"
         });
 
-        console.log(`[dbHandlers] dbOpen: result = ${JSON.stringify(filePaths)}`);
-
         if (!filePaths || filePaths.length === 0 || filePaths[0] === "" || filePaths[0] === "undefined") {
-            console.log("[dbHandlers] dbOpen: No file selected or user cancelled.");
             return { ok: false, error: "No file selected", dbName: "", dbPath: null, tables: [] };
         }
 
         const path = filePaths[0].trim();
-        console.log(`[dbHandlers] dbOpen: Path selected: "${path}"`);
 
         try {
-            console.log(`[dbHandlers] dbOpen: Calling openDatabase("${path}")`);
-            openDatabase(path);
-            console.log(`[dbHandlers] dbOpen: Database opened. Fetching tables...`);
+            const db = openDatabase(path);
+            beginTransaction(db);
+            
             const tables = getTableNames();
-            console.log(`[dbHandlers] dbOpen: Tables fetched: ${JSON.stringify(tables)}`);
+            markDirty(rpc, false); // New DB, not dirty
+
+            // Update session
+            await saveSession({ lastOpenedPath: path });
+
             const response = {
                 ok: true,
                 dbName: basename(path),
@@ -39,11 +53,7 @@ export const createDbHandlers = (rpc: AppRPC) => ({
                 tables
             };
 
-            // Push the update to the webview immediately
-            console.log(`[dbHandlers] dbOpen: Pushing dbOpened message to webview...`);
             rpc.send.dbOpened(response);
-
-            console.log(`[dbHandlers] dbOpen: Returning response: ${JSON.stringify(response)}`);
             return response;
         } catch (e) {
             console.error(`[dbHandlers] dbOpen Error: ${e}`);
@@ -51,38 +61,55 @@ export const createDbHandlers = (rpc: AppRPC) => ({
         }
     },
 
+    dbOpenByPath: async (params: { path: string }): Promise<OpenResult> => {
+        try {
+            const db = openDatabase(params.path);
+            beginTransaction(db);
+            const tables = getTableNames();
+            markDirty(rpc, false);
+
+            const response = {
+                ok: true,
+                dbName: basename(params.path),
+                dbPath: params.path,
+                tables
+            };
+            rpc.send.dbOpened(response);
+            return response;
+        } catch (e) {
+            return { ok: false, error: String(e), dbName: "", dbPath: null, tables: [] };
+        }
+    },
+
     dbCreate: async (params: { filename: string }): Promise<OpenResult> => {
         const { filename } = params;
-        console.log(`[dbHandlers] dbCreate: Starting process with filename: "${filename}"`);
 
         if (!filename) {
             return { ok: false, error: "No filename provided", dbName: "", dbPath: null, tables: [] };
         }
 
         const finalFilename = filename.toLowerCase().endsWith(".db") ? filename : `${filename}.db`;
-        console.log(`[dbHandlers] dbCreate: Final filename will be: "${finalFilename}"`);
 
-        console.log("[dbHandlers] dbCreate: Prompting for folder selection...");
         const filePaths = await Utils.openFileDialog({
             canChooseFiles: false,
             canChooseDirectory: true,
             allowsMultipleSelection: false
         });
 
-        console.log(`[dbHandlers] dbCreate: Folder selection result = ${JSON.stringify(filePaths)}`);
-
         if (!filePaths || filePaths.length === 0 || filePaths[0] === "" || filePaths[0] === "undefined") {
-            console.log("[dbHandlers] dbCreate: No folder selected or user cancelled.");
             return { ok: false, error: "No location selected", dbName: "", dbPath: null, tables: [] };
         }
 
         const folderPath = filePaths[0].trim();
         const path = join(folderPath, finalFilename);
-        console.log(`[dbHandlers] dbCreate: Full target path: "${path}"`);
 
         try {
-            console.log(`[dbHandlers] dbCreate: Initializing database at "${path}"...`);
-            openDatabase(path);
+            const db = openDatabase(path);
+            beginTransaction(db);
+            markDirty(rpc, false);
+
+            await saveSession({ lastOpenedPath: path });
+
             const response = {
                 ok: true,
                 dbName: basename(path),
@@ -90,16 +117,99 @@ export const createDbHandlers = (rpc: AppRPC) => ({
                 tables: []
             };
 
-            // Push the update to the webview immediately
-            console.log(`[dbHandlers] dbCreate: Pushing dbOpened message to webview...`);
             rpc.send.dbOpened(response);
-
-            console.log("[dbHandlers] dbCreate: Success!");
             return response;
         } catch (e) {
             console.error(`[dbHandlers] dbCreate Error: ${e}`);
             return { ok: false, error: String(e), dbName: "", dbPath: null, tables: [] };
         }
+    },
+
+    dbSave: async (): Promise<OpResult> => {
+        try {
+            const db = getDatabase();
+            commitAndContinue(db);
+            markDirty(rpc, false);
+            const path = getCurrentDbPath();
+            rpc.send.dbSaved({ dbPath: path, dbName: path ? basename(path) : "" });
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: String(e) };
+        }
+    },
+
+    dbSaveAs: async (params: { suggestedName: string }): Promise<OpResult> => {
+        try {
+            const currentPath = getCurrentDbPath();
+            if (!currentPath) return { ok: false, error: "No database open" };
+
+            const filePaths = await Utils.openFileDialog({
+                canChooseFiles: false,
+                canChooseDirectory: true,
+                allowsMultipleSelection: false
+            });
+
+            if (!filePaths || filePaths.length === 0) return { ok: false, error: "No location selected" };
+
+            const destPath = join(filePaths[0], params.suggestedName.endsWith(".db") ? params.suggestedName : `${params.suggestedName}.db`);
+            
+            const db = getDatabase();
+            commitOnly(db); // Flush to disk
+
+            await copyFile(currentPath, destPath);
+            
+            // Re-open at new path
+            openDatabase(destPath);
+            beginTransaction(getDatabase());
+            markDirty(rpc, false);
+
+            await saveSession({ lastOpenedPath: destPath });
+
+            const newName = basename(destPath);
+            rpc.send.dbSaved({ dbPath: destPath, dbName: newName });
+            
+            // Also notify that a new DB effectively "opened" (though it's a save-as)
+            rpc.send.dbOpened({
+                ok: true,
+                dbName: newName,
+                dbPath: destPath,
+                tables: getTableNames()
+            });
+
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: String(e) };
+        }
+    },
+
+    dbClose: async (): Promise<OpResult> => {
+        try {
+            const db = getDatabase();
+            rollbackTransaction(db); // Discard uncommitted
+            closeDatabase();
+            markDirty(rpc, false);
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: String(e) };
+        }
+    },
+
+    autosaveSet: async (params: { enabled: boolean }): Promise<OpResult> => {
+        isAutoSave = params.enabled;
+        if (isAutoSave && isDirty) {
+            try {
+                commitAndContinue(getDatabase());
+                markDirty(rpc, false);
+            } catch (e) {}
+        }
+        await saveSession({ autoSave: isAutoSave });
+        return { ok: true };
+    },
+
+    sessionGet: async (): Promise<SessionData> => {
+        const session = await loadSession();
+        isAutoSave = session.autoSave;
+        return session;
     },
 
     tableList: async (): Promise<{ tables: string[] }> => {
@@ -118,11 +228,47 @@ export const createDbHandlers = (rpc: AppRPC) => ({
         }
     },
 
-    cellUpdate: async (params: { tableName: string; column: string; value: any; rowId: number }): Promise<OpResult> => {
+    cellUpdate: async (params: { tableName: string; columnName: string; rowId: number; value: any }): Promise<OpResult> => {
         try {
-            const sql = `UPDATE "${params.tableName}" SET "${params.column}" = ? WHERE rowid = ?`;
-            const db = openDatabase(getCurrentDbPath() || ""); // Ensure connection
-            db.query(sql).run(params.value, params.rowId);
+            const sql = `UPDATE "${params.tableName}" SET "${params.columnName}" = ? WHERE rowid = ?`;
+            const db = getDatabase();
+            db.prepare(sql).run(params.value, params.rowId);
+            
+            if (isAutoSave) {
+                commitAndContinue(db);
+            } else {
+                markDirty(rpc, true);
+            }
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: String(e) };
+        }
+    },
+
+    cellExec: async (params: { sql: string; params: (string | number | null)[] }): Promise<OpResult> => {
+        try {
+            const db = getDatabase();
+            db.prepare(params.sql).run(...params.params);
+            if (isAutoSave) {
+                commitAndContinue(db);
+            } else {
+                markDirty(rpc, true);
+            }
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: String(e) };
+        }
+    },
+
+    rowInsert: async (params: { tableName: string }): Promise<OpResult> => {
+        // This will be expanded in Phase 2.1 with default value resolution
+        try {
+            insertDefaultRow(params.tableName);
+            if (isAutoSave) {
+                commitAndContinue(getDatabase());
+            } else {
+                markDirty(rpc, true);
+            }
             return { ok: true };
         } catch (e) {
             return { ok: false, error: String(e) };
@@ -132,8 +278,13 @@ export const createDbHandlers = (rpc: AppRPC) => ({
     rowDelete: async (params: { tableName: string; rowId: number }): Promise<OpResult> => {
         try {
             const sql = `DELETE FROM "${params.tableName}" WHERE rowid = ?`;
-            const db = openDatabase(getCurrentDbPath() || "");
-            db.query(sql).run(params.rowId);
+            const db = getDatabase();
+            db.prepare(sql).run(params.rowId);
+            if (isAutoSave) {
+                commitAndContinue(db);
+            } else {
+                markDirty(rpc, true);
+            }
             return { ok: true };
         } catch (e) {
             return { ok: false, error: String(e) };
@@ -142,9 +293,76 @@ export const createDbHandlers = (rpc: AppRPC) => ({
 
     terminalExec: async (params: { sql: string }): Promise<TerminalResult> => {
         try {
-            return executeRawQuery(params.sql);
+            const result = executeRawQuery(params.sql);
+            if (!result.error && isAutoSave) {
+                // If it was a mutation, commit it
+                commitAndContinue(getDatabase());
+            } else if (!result.error) {
+                markDirty(rpc, true);
+            }
+            return result;
         } catch (e) {
             return { sql: params.sql, error: String(e) };
+        }
+    },
+
+    tableCreate: async (params: { tableName: string; columns: ColumnDef[] }): Promise<OpResult> => {
+        try {
+            const { createTable } = await import("../db/queries");
+            createTable(params.tableName, params.columns);
+            if (isAutoSave) {
+                commitAndContinue(getDatabase());
+            } else {
+                markDirty(rpc, true);
+            }
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: String(e) };
+        }
+    },
+
+    tableDrop: async (params: { tableName: string }): Promise<OpResult> => {
+        try {
+            const { dropTable } = await import("../db/queries");
+            dropTable(params.tableName);
+            if (isAutoSave) {
+                commitAndContinue(getDatabase());
+            } else {
+                markDirty(rpc, true);
+            }
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: String(e) };
+        }
+    },
+
+    columnAdd: async (params: { tableName: string; column: ColumnDef }): Promise<OpResult> => {
+        try {
+            const { addColumn } = await import("../db/queries");
+            addColumn(params.tableName, params.column);
+            if (isAutoSave) {
+                commitAndContinue(getDatabase());
+            } else {
+                markDirty(rpc, true);
+            }
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: String(e) };
+        }
+    },
+
+    columnDrop: async (params: { tableName: string; columnName: string }): Promise<OpResult> => {
+        try {
+            const { dropColumn } = await import("../db/queries");
+            dropColumn(params.tableName, params.columnName);
+            if (isAutoSave) {
+                commitAndContinue(getDatabase());
+            } else {
+                markDirty(rpc, true);
+            }
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: String(e) };
         }
     }
 });

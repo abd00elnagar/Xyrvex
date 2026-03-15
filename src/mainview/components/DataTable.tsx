@@ -6,9 +6,12 @@ interface DataTableProps {
     data: TableData;
     onCellUpdate?: (column: string, value: any, rowId: number) => void;
     onRowDelete?: (rowId: number) => void;
+    onRowInsert?: () => void;
+    onAddColumn?: () => void;
+    onDropColumn?: (columnName: string) => void;
 }
 
-export function DataTable({ tableName, data, onCellUpdate, onRowDelete }: DataTableProps) {
+export function DataTable({ tableName, data, onCellUpdate, onRowDelete, onRowInsert, onAddColumn, onDropColumn }: DataTableProps) {
     const [editingCell, setEditingCell] = useState<{ rowIndex: number, colIndex: number } | null>(null);
     const [editValue, setEditValue] = useState<string>('');
     const inputRef = useRef<HTMLInputElement>(null);
@@ -78,7 +81,17 @@ export function DataTable({ tableName, data, onCellUpdate, onRowDelete }: DataTa
                                 </div>
                             </th>
                         ))}
-                        <th className="px-4 py-3 border-b border-neutral-800 w-10"></th>
+                        <th className="px-4 py-3 border-b border-neutral-800 w-10">
+                            <button
+                                onClick={onAddColumn}
+                                className="p-1 hover:bg-emerald-500/20 text-neutral-500 hover:text-emerald-500 rounded transition-colors"
+                                title="Add Column"
+                            >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                            </button>
+                        </th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-800/50">
@@ -139,6 +152,19 @@ export function DataTable({ tableName, data, onCellUpdate, onRowDelete }: DataTa
                     )}
                 </tbody>
             </table>
+            
+            {/* Add Row Button at the bottom */}
+            <div className="p-4 flex justify-center border-t border-neutral-800/50">
+                <button
+                    onClick={onRowInsert}
+                    className="flex items-center space-x-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white rounded-lg text-xs font-bold transition-all border border-neutral-700/50 hover:border-emerald-500/30 group"
+                >
+                    <svg className="w-3.5 h-3.5 text-neutral-500 group-hover:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Add New Row</span>
+                </button>
+            </div>
         </div>
     );
 }
