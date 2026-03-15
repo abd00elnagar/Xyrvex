@@ -1,6 +1,6 @@
 {
 	"name": "sql-editor",
-	"version": "2.1.1",
+	"version": "2.1.2",
 	"description": "SQL Editor App built with Electrobun, React, and Tailwind",
 	"scripts": {
 		"start": "vite build && electrobun dev",
