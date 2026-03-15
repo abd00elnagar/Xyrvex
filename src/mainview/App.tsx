@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Electroview } from "electrobun/view";
-import type { AppSchema, TableData, SqlSnippet } from "../shared/types";
+import type { AppSchema, TableData, SqlSnippet, OpenResult, SessionData } from "../shared/types";
 import { Header } from "./components/Header";
 import { Sidebar } from './components/Sidebar';
 import { DataTable } from './components/DataTable';
@@ -10,14 +10,15 @@ import { CreateTableModal } from "./components/CreateTableModal";
 import { AddColumnModal } from "./components/AddColumnModal";
 import { SaveAsModal } from "./components/SaveAsModal";
 import { Menu } from "./components/Menu";
+import { Dialog, DialogType } from "./components/Dialog";
 
 const rpc = Electroview.defineRPC<AppSchema>({
 	handlers: {
 		messages: {
-			dbSaved: (payload) => {
+			dbSaved: (payload: { dbPath: string | null; dbName: string }) => {
 				console.log("[RPC] Message dbSaved:", payload.dbPath);
 			},
-			dbDirtyChanged: (payload) => {
+			dbDirtyChanged: (payload: { isDirty: boolean }) => {
 				console.log("[RPC] Message dbDirtyChanged:", payload.isDirty);
 			}
 		}
@@ -49,6 +50,48 @@ function App() {
 	const lastLoadedDbPathForSnippets = useRef<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
+	// Dialog State
+	const [dialog, setDialog] = useState<{
+		isOpen: boolean;
+		type: DialogType;
+		title: string;
+		message: string;
+		onConfirm: () => void;
+		onCancel?: () => void;
+		showCancel?: boolean;
+		confirmLabel?: string;
+	}>({
+		isOpen: false,
+		type: 'info',
+		title: '',
+		message: '',
+		onConfirm: () => {}
+	});
+
+	const showDialog = useCallback((params: {
+		type: DialogType;
+		title: string;
+		message: string;
+		onConfirm?: () => void;
+		onCancel?: () => void;
+		showCancel?: boolean;
+		confirmLabel?: string;
+		cancelLabel?: string;
+	}) => {
+		setDialog({
+			isOpen: true,
+			...params,
+			onConfirm: () => {
+				setDialog(prev => ({ ...prev, isOpen: false }));
+				if (params.onConfirm) params.onConfirm();
+			},
+			onCancel: () => {
+				setDialog(prev => ({ ...prev, isOpen: false }));
+				if (params.onCancel) params.onCancel();
+			}
+		});
+	}, []);
+
 	const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
@@ -65,7 +108,11 @@ function App() {
 
 			setSnippets(prev => [...prev, newSnippet]);
 			handleSelectSnippet(newSnippet.id);
-			alert("Successfully imported snippet: " + newSnippet.name);
+			showDialog({
+				type: 'success',
+				title: 'Import Successful',
+				message: `Successfully imported snippet: ${newSnippet.name}`
+			});
 			
 			// Reset input
 			if (fileInputRef.current) fileInputRef.current.value = '';
@@ -130,21 +177,28 @@ function App() {
 
 	const handleRowDelete = useCallback(async (rowId: number) => {
 		if (!activeTable) return;
-		if (!confirm("Are you sure you want to delete this row?")) return;
-
-		try {
-			const result = await rpc.request.rowDelete({
-				tableName: activeTable,
-				rowId
-			});
-			if (result.ok) {
-				const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
-				setTableData(data);
+		
+		showDialog({
+			type: 'confirm',
+			title: 'Delete Row',
+			message: 'Are you sure you want to delete this row?',
+			confirmLabel: 'Delete',
+			onConfirm: async () => {
+				try {
+					const result = await rpc.request.rowDelete({
+						tableName: activeTable,
+						rowId
+					});
+					if (result.ok) {
+						const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
+						setTableData(data);
+					}
+				} catch (err) {
+					console.error("[App] Row deletion failed:", err);
+				}
 			}
-		} catch (err) {
-			console.error("[App] Row deletion failed:", err);
-		}
-	}, [activeTable]);
+		});
+	}, [activeTable, showDialog]);
 
 	const handleRowInsert = useCallback(async () => {
 		if (!activeTable) return;
@@ -231,21 +285,28 @@ function App() {
 	}, [handleSelectTable]);
 
 	const handleDropTable = useCallback(async (tableName: string) => {
-		if (!confirm(`Are you sure you want to DROP TABLE "${tableName}"? This action cannot be undone.`)) return;
-		try {
-			const result = await rpc.request.tableDrop({ tableName });
-			if (result.ok) {
-				const res = await rpc.request.tableList({});
-				setTables(res.tables);
-				if (activeTable === tableName) {
-					setActiveTable(null);
-					setTableData({ columns: [], rows: [] });
+		showDialog({
+			type: 'confirm',
+			title: 'Drop Table',
+			message: `Are you sure you want to DROP TABLE "${tableName}"? This action cannot be undone.`,
+			confirmLabel: 'Drop Table',
+			onConfirm: async () => {
+				try {
+					const result = await rpc.request.tableDrop({ tableName });
+					if (result.ok) {
+						const res = await rpc.request.tableList({});
+						setTables(res.tables);
+						if (activeTable === tableName) {
+							setActiveTable(null);
+							setTableData({ columns: [], rows: [] });
+						}
+					}
+				} catch (err) {
+					console.error("[App] Drop table failed:", err);
 				}
 			}
-		} catch (err) {
-			console.error("[App] Drop table failed:", err);
-		}
-	}, [activeTable]);
+		});
+	}, [activeTable, showDialog]);
 
 	const handleAddColumn = useCallback(async (column: any): Promise<boolean> => {
 		if (!activeTable) return false;
@@ -262,20 +323,6 @@ function App() {
 		} catch (err) {
 			console.error("[App] Add column failed:", err);
 			return false;
-		}
-	}, [activeTable]);
-
-	const handleDropColumn = useCallback(async (columnName: string) => {
-		if (!activeTable) return;
-		if (!confirm(`Are you sure you want to DROP COLUMN "${columnName}"?`)) return;
-		try {
-			const result = await rpc.request.columnDrop({ tableName: activeTable, columnName });
-			if (result.ok) {
-				const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
-				setTableData(data);
-			}
-		} catch (err) {
-			console.error("[App] Drop column failed:", err);
 		}
 	}, [activeTable]);
 
@@ -329,7 +376,11 @@ function App() {
 		try {
 			const result = await rpc.request.snippetExport({ snippet });
 			if (!result.ok && result.error !== "No location selected" && result.error !== "Aborted by user") {
-				alert("Export failed: " + result.error);
+				showDialog({
+					type: 'error',
+					title: 'Export Failed',
+					message: result.error || 'Unknown error during export'
+				});
 			}
 		} catch (err) {
 			console.error("[App] Snippet export failed", err);
@@ -337,13 +388,19 @@ function App() {
 	}, []);
 
 	const handleDeleteSnippet = useCallback((id: string) => {
-		if (confirm("Are you sure you want to delete this snippet?")) {
-			setSnippets(prev => prev.filter(s => s.id !== id));
-			if (activeSnippetId === id) {
-				setActiveSnippetId(null);
+		showDialog({
+			type: 'confirm',
+			title: 'Delete Snippet',
+			message: 'Are you sure you want to delete this snippet?',
+			confirmLabel: 'Delete',
+			onConfirm: () => {
+				setSnippets(prev => prev.filter(s => s.id !== id));
+				if (activeSnippetId === id) {
+					setActiveSnippetId(null);
+				}
 			}
-		}
-	}, [activeSnippetId]);
+		});
+	}, [activeSnippetId, showDialog]);
 
     const handleRenameSnippet = useCallback((id: string, newName: string) => {
         setSnippets(prev => prev.map(s => s.id === id ? { ...s, name: newName } : s));
@@ -405,7 +462,7 @@ function App() {
 			case 'redo': h.handleRedo(); break;
 			case 'toggle-autosave': h.toggleAutoSave(); break;
 			case 'refresh':
-				rpc.request.tableList({}).then(res => h.setTables(res.tables));
+				rpc.request.tableList({}).then((res: { tables: string[] }) => h.setTables(res.tables));
 				break;
 			case 'save-as':
 				setIsSaveAsModalOpen(true);
@@ -486,14 +543,14 @@ function App() {
 			setIsDirty(p.isDirty);
 		};
 
-		const onDbSaved = (p: any) => {
+		const onDbSaved = (p: { dbPath: string | null; dbName: string }) => {
 			console.log("[App] Push message dbSaved:", p.dbPath);
 			setIsDirty(false);
 			setDbName(p.dbName);
 			setDbPath(p.dbPath);
 		};
 
-		const onDbOpened = (payload: any) => {
+		const onDbOpened = (payload: OpenResult) => {
 			console.log("[App] Push message dbOpened:", payload);
 			if (payload.ok) {
 				setDbName(payload.dbName);
@@ -504,7 +561,7 @@ function App() {
 				setIsNewDbModalOpen(false);
 				
 				if (payload.dbPath) {
-					rpc.request.snippetsGet({ dbPath: payload.dbPath }).then(res => {
+					rpc.request.snippetsGet({ dbPath: payload.dbPath }).then((res: { snippets: SqlSnippet[] }) => {
 						setSnippets(res.snippets);
 						setActiveSnippetId(null);
 						lastLoadedDbPathForSnippets.current = payload.dbPath;
@@ -516,29 +573,61 @@ function App() {
 				}
 			} else {
 				console.error("[App] dbOpened error:", payload.error);
-				alert(`Failed to open database: ${payload.error}`);
+				showDialog({
+					type: 'error',
+					title: 'Database Load Error',
+					message: `Failed to open database: ${payload.error}`
+				});
 			}
+		};
+
+		const onDialogRequest = (payload: {
+			id: string;
+			type: 'info' | 'warning' | 'error' | 'confirm' | 'success'; 
+			title: string; 
+			message: string; 
+			detail?: string;
+			buttons: string[];
+			defaultId?: number;
+			cancelId?: number;
+		}) => {
+			console.log("[App] Push message dialogRequest:", payload);
+			showDialog({
+				type: payload.type,
+				title: payload.title,
+				message: payload.detail ? `${payload.message}\n\n${payload.detail}` : payload.message,
+				confirmLabel: payload.buttons[0],
+				cancelLabel: payload.buttons[1],
+				showCancel: payload.buttons.length > 1,
+				onConfirm: () => {
+					rpc.request.dialogResponse({ id: payload.id, choice: 0 });
+				},
+				onCancel: () => {
+					rpc.request.dialogResponse({ id: payload.id, choice: 1 });
+				}
+			});
 		};
 
 		rpc.addMessageListener('menuAction', onMenuAction);
 		rpc.addMessageListener('dbOpened', onDbOpened);
 		rpc.addMessageListener('dbDirtyChanged', onDbDirtyChanged);
 		rpc.addMessageListener('dbSaved', onDbSaved);
+		rpc.addMessageListener('dialogRequest', onDialogRequest);
 
 		// Initial session load (ONCE)
-		rpc.request.sessionGet({}).then(session => {
+		rpc.request.sessionGet({}).then((session: SessionData) => {
 			console.log("[App] Session loaded:", session);
 			setIsAutoSave(session.autoSave);
 			if (session.lastOpenedPath) {
 				console.log("[App] Auto-restoring path:", session.lastOpenedPath);
-				rpc.request.dbOpenByPath({ path: session.lastOpenedPath }).then(res => {
+				rpc.request.dbOpenByPath({ path: session.lastOpenedPath }).then((res: OpenResult) => {
 					console.log("[App] Auto-restore result:", res);
 					if (res.ok) {
 						setDbName(res.dbName);
 						setDbPath(res.dbPath || null);
 						setTables(res.tables);
 						
-						rpc.request.snippetsGet({ dbPath: session.lastOpenedPath }).then(snipRes => {
+						rpc.request.snippetsGet({ dbPath: session.lastOpenedPath }).then((snipRes: { snippets: SqlSnippet[] }) => {
 							setSnippets(snipRes.snippets);
 							lastLoadedDbPathForSnippets.current = session.lastOpenedPath;
 						});
@@ -555,6 +644,7 @@ function App() {
 			rpc.removeMessageListener('dbOpened', onDbOpened);
 			rpc.removeMessageListener('dbDirtyChanged', onDbDirtyChanged);
 			rpc.removeMessageListener('dbSaved', onDbSaved);
+			rpc.removeMessageListener('dialogRequest', onDialogRequest);
 		};
 	}, []);
 
@@ -562,7 +652,7 @@ function App() {
 	useEffect(() => {
 		if (dbPath && lastLoadedDbPathForSnippets.current === dbPath) {
 			const timeout = setTimeout(() => {
-				rpc.request.snippetsSave({ dbPath, snippets }).catch(err => {
+				rpc.request.snippetsSave({ dbPath, snippets }).catch((err: any) => {
 					console.error("[App] Failed to auto-save snippets:", err);
 				});
 			}, 1000); // 1-second debounce
@@ -691,6 +781,17 @@ function App() {
 						onClose={() => setIsAddColumnModalOpen(false)}
 						onAdd={handleAddColumn}
 						existingColumns={tableData.columns.map(c => c.name)}
+					/>
+
+					<Dialog 
+						isOpen={dialog.isOpen}
+						type={dialog.type}
+						title={dialog.title}
+						message={dialog.message}
+						confirmLabel={dialog.confirmLabel}
+						onConfirm={dialog.onConfirm}
+						onCancel={dialog.onCancel}
+						showCancel={dialog.showCancel}
 					/>
 				</main>
 			</div>

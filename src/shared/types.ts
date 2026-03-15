@@ -1,12 +1,11 @@
 // shared/types.ts
-import type { ElectrobunRPC } from "electrobun/shared";
-export type AppRPC = ElectrobunRPC<AppSchema, any>;
-
 export interface AppSchema {
     bun: {
         requests: {
             dbOpen: { params: {}; response: OpenResult };
+            dbOpenByPath: { params: { path: string }; response: OpenResult };
             dbCreate: { params: { filename: string }; response: OpenResult };
+            autosaveSet: { params: { enabled: boolean }; response: OpResult };
             dbSave: { params: {}; response: OpResult };
             dbSaveAs: { params: { suggestedName: string }; response: OpResult };
             dbClose: { params: {}; response: OpResult };
@@ -21,9 +20,8 @@ export interface AppSchema {
             cellUpdate: { params: { tableName: string; columnName: string; rowId: number; value: string | number | null }; response: OpResult };
             cellExec: { params: { sql: string; params: (string | number | null)[] }; response: OpResult };
             terminalExec: { params: { sql: string }; response: TerminalResult };
-            dbOpenByPath: { params: { path: string }; response: OpenResult };
-            autosaveSet: { params: { enabled: boolean }; response: OpResult };
             sessionGet: { params: {}; response: SessionData };
+            dialogResponse: { params: { id: string; choice: number }; response: { ok: boolean } };
             snippetExport: { params: { snippet: SqlSnippet }; response: OpResult };
             snippetsGet: { params: { dbPath: string | null }; response: { snippets: SqlSnippet[] } };
             snippetsSave: { params: { dbPath: string | null; snippets: SqlSnippet[] }; response: OpResult };
@@ -35,6 +33,16 @@ export interface AppSchema {
         messages: {
             dbOpened: OpenResult;
             dbDirtyChanged: { isDirty: boolean };
+            dialogRequest: {
+                id: string;
+                type: 'info' | 'warning' | 'error' | 'confirm' | 'success';
+                title: string;
+                message: string;
+                detail?: string;
+                buttons: string[];
+                defaultId?: number;
+                cancelId?: number;
+            };
             dbSaved: { dbPath: string | null; dbName: string };
             dbError: { message: string };
             menuAction: { action: string };

@@ -67,6 +67,7 @@ rpc.setRequestHandler({
 	snippetExport: dbHandlers.snippetExport,
 	snippetsGet: dbHandlers.snippetsGet,
 	snippetsSave: dbHandlers.snippetsSave,
+	dialogResponse: dbHandlers.dialogResponse,
 });
 
 // Create the main application window
@@ -103,7 +104,19 @@ setTimeout(() => {
 Electrobun.events.on("before-quit", async (e: any) => {
 	if (getIsDirty()) {
 		if (e && typeof e.preventDefault === 'function') e.preventDefault();
-		const { response } = await Utils.showMessageBox({
+		
+		// Note: Since we're in the bun process, and we want to show a JSX dialog,
+		// we need to use the rpc instance. 
+		// However, showCustomBox is in handlers.ts and we already have it in dbHandlers.
+		// But dbHandlers doesn't expose it directly.
+		// Let's just use Utils.showMessageBox for quit as a fallback, 
+		// OR let's improve App.tsx to handle quit if possible.
+		// Actually, let's just keep quit as native for now as it's the safest for shutdown, 
+		// BUT the user said "no browser things". showMessageBox is native OS, not browser.
+		// If they REALLY meant no OS things either, I should use JSX.
+		
+		// Let's try JSX for quit too.
+		const { response } = await (dbHandlers as any).showCustomBox({
 			type: "warning",
 			title: "Unsaved Changes",
 			message: "You have unsaved changes.",
@@ -127,13 +140,8 @@ Electrobun.events.on("before-quit", async (e: any) => {
 			closeDatabase();
 		}
 		
-		// If prevented earlier, we might need to manually quit now that we're done
-		if (e && typeof e.preventDefault === 'function') {
-			Utils.quit();
-			return;
-		}
+		Utils.quit();
 	}
-	console.log("SQL Editor is shutting down...");
 });
 
 console.log("SQL Editor started with HMR and correct RPC setup!");

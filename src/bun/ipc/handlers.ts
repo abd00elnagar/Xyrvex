@@ -3,9 +3,14 @@ import { openDatabase, getCurrentDbPath, getDatabase, closeDatabase } from "../d
 import { getTableNames, executeRawQuery, getTableData, insertDefaultRow } from "../db/queries";
 import { beginTransaction, commitAndContinue, commitOnly, rollbackTransaction } from "../db/transaction";
 import { loadSession, saveSession } from "../session";
-import type { AppRPC, OpenResult, OpResult, TerminalResult, SessionData, ColumnDef, TableData, SqlSnippet } from "../../shared/types";
+import type { OpenResult, OpResult, TerminalResult, SessionData, ColumnDef, TableData, SqlSnippet } from "../../shared/types";
 import { basename, join } from "node:path";
-import { existsSync, readFileSync } from "node:fs";
+import { copyFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+
+// We define a local type for RPC to avoid circular dependency via shared types
+export type AppRPC = any; 
+
 
 // We'll pass the RPC instance from index.ts to enable push messages
 // Keep track of internal state for dirty tracking and auto-save
@@ -21,10 +26,34 @@ function markDirty(rpc: AppRPC, dirty: boolean) {
 
 export const getIsDirty = () => isDirty;
 
+const pendingDialogs = new Map<string, (choice: number) => void>();
+
+async function showCustomBox(rpc: AppRPC, params: {
+    type: 'info' | 'warning' | 'error' | 'confirm' | 'success';
+    title: string;
+    message: string;
+    detail?: string;
+    buttons: string[];
+    defaultId?: number;
+    cancelId?: number;
+}): Promise<{ response: number }> {
+    const id = Math.random().toString(36).substring(2, 9);
+    return new Promise((resolve) => {
+        pendingDialogs.set(id, (choice) => {
+            resolve({ response: choice });
+        });
+        rpc.send.dialogRequest({
+            id,
+            ...params
+        });
+    });
+}
+
 export const createDbHandlers = (rpc: AppRPC) => ({
+    showCustomBox: (params: any) => showCustomBox(rpc, params),
     dbOpen: async (): Promise<OpenResult> => {
         if (isDirty) {
-            const { response } = await Utils.showMessageBox({
+            const { response } = await showCustomBox(rpc, {
                 type: "warning",
                 title: "Unsaved Changes",
                 message: "You have unsaved changes.",
@@ -81,7 +110,7 @@ export const createDbHandlers = (rpc: AppRPC) => ({
 
     dbOpenByPath: async (params: { path: string }): Promise<OpenResult> => {
         if (isDirty) {
-            const { response } = await Utils.showMessageBox({
+            const { response } = await showCustomBox(rpc, {
                 type: "warning",
                 title: "Unsaved Changes",
                 message: "You have unsaved changes.",
@@ -291,7 +320,17 @@ export const createDbHandlers = (rpc: AppRPC) => ({
         return { ok: true };
     },
 
-    snippetExport: async (params: { snippet: any }): Promise<OpResult> => {
+    dialogResponse: async (params: { id: string; choice: number }): Promise<{ ok: boolean }> => {
+        const resolve = pendingDialogs.get(params.id);
+        if (resolve) {
+            resolve(params.choice);
+            pendingDialogs.delete(params.id);
+            return { ok: true };
+        }
+        return { ok: false };
+    },
+
+    snippetExport: async (params: { snippet: SqlSnippet }): Promise<OpResult> => {
         console.log("[dbHandlers] snippetExport triggered with:", params.snippet?.name);
         try {
             const { snippet } = params;
@@ -315,7 +354,7 @@ export const createDbHandlers = (rpc: AppRPC) => ({
             const destPath = join(folderPath, finalFilename);
 
             if (existsSync(destPath)) {
-                const { response } = await Utils.showMessageBox({
+                const { response } = await showCustomBox(rpc, {
                     type: "warning",
                     title: "File Exists",
                     message: `A file named "${finalFilename}" already exists.`,
