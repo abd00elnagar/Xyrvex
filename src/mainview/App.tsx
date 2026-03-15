@@ -8,6 +8,7 @@ import { Terminal } from "./components/Terminal";
 import { NewDbModal } from "./components/NewDbModal";
 import { CreateTableModal } from "./components/CreateTableModal";
 import { AddColumnModal } from "./components/AddColumnModal";
+import { SaveAsModal } from "./components/SaveAsModal";
 import { Menu } from "./components/Menu";
 
 const rpc = Electroview.defineRPC<AppSchema>({
@@ -34,6 +35,7 @@ function App() {
 	const [tableData, setTableData] = useState<TableData>({ columns: [], rows: [] });
 	const [isTerminalOpen, setIsTerminalOpen] = useState(false);
 	const [isNewDbModalOpen, setIsNewDbModalOpen] = useState(false);
+	const [isSaveAsModalOpen, setIsSaveAsModalOpen] = useState(false);
 	const [isCreateTableModalOpen, setIsCreateTableModalOpen] = useState(false);
 	const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
 	const [isDirty, setIsDirty] = useState(false);
@@ -148,6 +150,16 @@ function App() {
 			console.log("[App] dbCreate result:", result);
 		} catch (err) {
 			console.error("[App] RPC Error creating DB:", err);
+		}
+	}, []);
+
+	const confirmSaveAs = useCallback(async (filename: string) => {
+		try {
+			setIsSaveAsModalOpen(false);
+			const result = await rpc.request.dbSaveAs({ suggestedName: filename });
+			if (result.ok) setIsDirty(false);
+		} catch (err) {
+			console.error("[App] RPC Error saving AS:", err);
 		}
 	}, []);
 
@@ -312,9 +324,7 @@ function App() {
 				rpc.request.tableList({}).then(res => h.setTables(res.tables));
 				break;
 			case 'save-as':
-				rpc.request.dbSaveAs({}).then(res => {
-					if (res.ok) setIsDirty(false);
-				});
+				setIsSaveAsModalOpen(true);
 				break;
 		}
 	}, []);
@@ -521,6 +531,13 @@ function App() {
 						isOpen={isNewDbModalOpen}
 						onClose={() => setIsNewDbModalOpen(false)}
 						onCreate={confirmCreateDb}
+					/>
+
+					<SaveAsModal
+						isOpen={isSaveAsModalOpen}
+						onClose={() => setIsSaveAsModalOpen(false)}
+						onSave={confirmSaveAs}
+						currentDbName={dbName}
 					/>
 
 					<CreateTableModal

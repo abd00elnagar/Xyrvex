@@ -6,6 +6,7 @@ import { loadSession, saveSession } from "../session";
 import type { AppRPC, OpenResult, OpResult, TerminalResult, SessionData, ColumnDef, TableData } from "../../shared/types";
 import { basename, join } from "node:path";
 import { copyFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 
 // We'll pass the RPC instance from index.ts to enable push messages
 // Keep track of internal state for dirty tracking and auto-save
@@ -19,11 +20,29 @@ function markDirty(rpc: AppRPC, dirty: boolean) {
     }
 }
 
+export const getIsDirty = () => isDirty;
+
 export const createDbHandlers = (rpc: AppRPC) => ({
     dbOpen: async (): Promise<OpenResult> => {
+        if (isDirty) {
+            const { response } = await Utils.showMessageBox({
+                type: "warning",
+                title: "Unsaved Changes",
+                message: "You have unsaved changes.",
+                detail: "Opening a new database will discard your current unsaved changes. Do you want to proceed?",
+                buttons: ["Proceed and Discard", "Cancel"],
+                defaultId: 1,
+                cancelId: 1
+            });
+            if (response === 1) {
+                return { ok: false, error: "Aborted by user", dbName: "", dbPath: null, tables: [] };
+            }
+        }
+
         console.log("[dbHandlers] dbOpen: Opening file dialog...");
 
         const filePaths = await Utils.openFileDialog({
+            startingFolder: Utils.paths.home,
             canChooseFiles: true,
             canChooseDirectory: false,
             allowsMultipleSelection: false,
@@ -62,6 +81,20 @@ export const createDbHandlers = (rpc: AppRPC) => ({
     },
 
     dbOpenByPath: async (params: { path: string }): Promise<OpenResult> => {
+        if (isDirty) {
+            const { response } = await Utils.showMessageBox({
+                type: "warning",
+                title: "Unsaved Changes",
+                message: "You have unsaved changes.",
+                detail: "Opening a new database will discard your current unsaved changes. Do you want to proceed?",
+                buttons: ["Proceed and Discard", "Cancel"],
+                defaultId: 1,
+                cancelId: 1
+            });
+            if (response === 1) {
+                return { ok: false, error: "Aborted by user", dbName: "", dbPath: null, tables: [] };
+            }
+        }
         try {
             const db = openDatabase(params.path);
             beginTransaction(db);
@@ -91,6 +124,7 @@ export const createDbHandlers = (rpc: AppRPC) => ({
         const finalFilename = filename.toLowerCase().endsWith(".db") ? filename : `${filename}.db`;
 
         const filePaths = await Utils.openFileDialog({
+            startingFolder: Utils.paths.home,
             canChooseFiles: false,
             canChooseDirectory: true,
             allowsMultipleSelection: false
@@ -102,6 +136,21 @@ export const createDbHandlers = (rpc: AppRPC) => ({
 
         const folderPath = filePaths[0].trim();
         const path = join(folderPath, finalFilename);
+
+        if (existsSync(path)) {
+            const { response } = await Utils.showMessageBox({
+                type: "warning",
+                title: "File Exists",
+                message: `A file named "${finalFilename}" already exists.`,
+                detail: "Do you want to replace it?",
+                buttons: ["Replace", "Cancel"],
+                defaultId: 1,
+                cancelId: 1
+            });
+            if (response === 1) {
+                return { ok: false, error: "Aborted by user", dbName: "", dbPath: null, tables: [] };
+            }
+        }
 
         try {
             const db = openDatabase(path);
@@ -144,6 +193,7 @@ export const createDbHandlers = (rpc: AppRPC) => ({
             if (!currentPath) return { ok: false, error: "No database open" };
 
             const filePaths = await Utils.openFileDialog({
+                startingFolder: Utils.paths.home,
                 canChooseFiles: false,
                 canChooseDirectory: true,
                 allowsMultipleSelection: false
@@ -153,6 +203,21 @@ export const createDbHandlers = (rpc: AppRPC) => ({
 
             const destPath = join(filePaths[0], params.suggestedName.endsWith(".db") ? params.suggestedName : `${params.suggestedName}.db`);
             
+            if (existsSync(destPath)) {
+                const { response } = await Utils.showMessageBox({
+                    type: "warning",
+                    title: "File Exists",
+                    message: `A file named "${basename(destPath)}" already exists.`,
+                    detail: "Do you want to replace it?",
+                    buttons: ["Replace", "Cancel"],
+                    defaultId: 1,
+                    cancelId: 1
+                });
+                if (response === 1) {
+                    return { ok: false, error: "Aborted by user" };
+                }
+            }
+
             const db = getDatabase();
             commitOnly(db); // Flush to disk
 

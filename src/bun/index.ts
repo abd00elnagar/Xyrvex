@@ -29,7 +29,9 @@ async function getMainViewUrl(): Promise<string> {
 	return "views://mainview/index.html";
 }
 
-import { createDbHandlers } from "./ipc/handlers";
+import { createDbHandlers, getIsDirty } from "./ipc/handlers";
+import { getDatabase, closeDatabase } from "./db/connection";
+import { commitOnly, rollbackTransaction } from "./db/transaction";
 
 // RPC Setup
 const rpc = defineElectrobunRPC<AppSchema>("bun", {
@@ -94,10 +96,40 @@ setTimeout(() => {
 	}, 100);
 }, 500);
 
-Electrobun.events.on("before-quit", async () => {
+Electrobun.events.on("before-quit", async (e: any) => {
+	if (getIsDirty()) {
+		if (e && typeof e.preventDefault === 'function') e.preventDefault();
+		const { response } = await Utils.showMessageBox({
+			type: "warning",
+			title: "Unsaved Changes",
+			message: "You have unsaved changes.",
+			detail: "Do you want to save your changes before closing?",
+			buttons: ["Save and Quit", "Don't Save", "Cancel"],
+			defaultId: 0,
+			cancelId: 2
+		});
+
+		if (response === 2) {
+			return; // Cancel quit
+		}
+
+		const db = getDatabase();
+		if (db) {
+			if (response === 0) {
+				commitOnly(db);
+			} else if (response === 1) {
+				rollbackTransaction(db);
+			}
+			closeDatabase();
+		}
+		
+		// If prevented earlier, we might need to manually quit now that we're done
+		if (e && typeof e.preventDefault === 'function') {
+			Utils.quit();
+			return;
+		}
+	}
 	console.log("SQL Editor is shutting down...");
-	// Session saving is already handled by individual RPC actions that change state,
-	// but we can ensure it's saved here too if needed.
 });
 
 console.log("SQL Editor started with HMR and correct RPC setup!");
