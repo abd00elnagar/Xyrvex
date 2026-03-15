@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SqlSnippet } from '../../shared/types';
+import { DbObject, SqlSnippet } from '../../shared/types';
 
 interface SidebarProps {
     tables: string[];
@@ -9,6 +9,12 @@ interface SidebarProps {
     onNewDb: () => void;
     onAddTable: () => void;
     onDropTable: (tableName: string) => void;
+    // Objects
+    objects: DbObject[];
+    activeObject: DbObject | null;
+    onSelectObject: (object: DbObject | null) => void;
+    onRefreshObjects: () => void;
+    onAddObject: (type: 'trigger' | 'index' | 'view' | 'function', tableName?: string) => void;
     // Snippets
     snippets: SqlSnippet[];
     activeSnippetId: string | null;
@@ -22,10 +28,23 @@ interface SidebarProps {
 
 export function Sidebar({ 
     tables, onSelectTable, activeTable, onOpenDb, onNewDb, onAddTable, onDropTable,
+    objects, activeObject, onSelectObject, onRefreshObjects, onAddObject,
     snippets, activeSnippetId, onSelectSnippet, onAddSnippet, onImportSnippet, onExportSnippet, onDeleteSnippet, onRenameSnippet
 }: SidebarProps) {
     const [isTablesOpen, setIsTablesOpen] = useState(true);
+    const [isObjectsOpen, setIsObjectsOpen] = useState(true);
     const [isSnippetsOpen, setIsSnippetsOpen] = useState(true);
+    
+    // Nested object toggle state
+    const [expandedTypes, setExpandedTypes] = useState<Record<string, boolean>>({
+        trigger: true,
+        index: true,
+        view: true
+    });
+    const [expandedTables, setExpandedTables] = useState<Record<string, boolean>>({});
+
+    const toggleType = (type: string) => setExpandedTypes(prev => ({ ...prev, [type]: !prev[type] }));
+    const toggleTable = (table: string) => setExpandedTables(prev => ({ ...prev, [table]: !prev[table] }));
     
     // Snippet Renaming State
     const [editingSnippetId, setEditingSnippetId] = useState<string | null>(null);
@@ -230,6 +249,145 @@ export function Sidebar({
                                     <span>Import</span>
                                 </button>
                             </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Objects Group */}
+                <div className="space-y-1 mt-4">
+                    <button 
+                        onClick={() => setIsObjectsOpen(!isObjectsOpen)}
+                        className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-bold text-neutral-500 uppercase tracking-widest hover:text-neutral-300 transition-colors group"
+                    >
+                        <div className="flex items-center space-x-1.5">
+                        <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isObjectsOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            <span>Objects ({objects.length})</span>
+                        </div>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onRefreshObjects(); }}
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-neutral-800 rounded text-neutral-500 hover:text-neutral-300 transition-all"
+                            title="Refresh Objects"
+                        >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        </button>
+                    </button>
+
+                    {isObjectsOpen && (
+                        <div className="pl-4 space-y-1">
+                            {['trigger', 'index', 'view', 'function'].map(type => {
+                                const typeObjects = objects.filter(o => o.type === type);
+                                
+                                return (
+                                    <div key={type} className="space-y-0.5">
+                                        <div className="group/type flex items-center justify-between">
+                                            <button 
+                                                onClick={() => toggleType(type)}
+                                                className="flex-1 flex items-center space-x-1.5 px-2 py-1 text-xs font-semibold text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/30 rounded transition-colors"
+                                            >
+                                                <svg className={`w-3 h-3 transition-transform duration-200 ${expandedTypes[type] ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                                <span className="capitalize">{type}s ({typeObjects.length})</span>
+                                            </button>
+                                            
+                                            {(type === 'view' || type === 'function') && (
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); onAddObject(type as any); }}
+                                                    className="opacity-0 group-hover/type:opacity-100 p-1 hover:bg-emerald-500/10 text-emerald-500 rounded transition-all mr-1"
+                                                    title={`Add ${type}`}
+                                                >
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {expandedTypes[type] && (
+                                            <div className="pl-3 space-y-0.5 border-l border-neutral-800 ml-1.5 mt-0.5">
+                                                {(type === 'view' || type === 'function') ? (
+                                                    // Views and Functions are flat
+                                                    typeObjects.length > 0 ? (
+                                                        typeObjects.map(obj => (
+                                                            <button
+                                                                key={obj.name}
+                                                                onClick={() => onSelectObject(obj)}
+                                                                className={`w-full text-left px-3 py-1 text-xs rounded transition-all duration-200 flex items-center space-x-2 ${
+                                                                    activeObject?.name === obj.name && activeObject?.type === type
+                                                                    ? type === 'view' 
+                                                                        ? 'bg-purple-500/10 text-purple-400 border-l border-purple-500/50'
+                                                                        : 'bg-emerald-500/10 text-emerald-400 border-l border-emerald-500/50'
+                                                                    : 'text-neutral-500 hover:bg-neutral-800/50 hover:text-neutral-300'
+                                                                }`}
+                                                            >
+                                                                {type === 'view' ? (
+                                                                    <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                                                ) : (
+                                                                    <svg className="w-3 h-3 opacity-50 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                                                )}
+                                                                <span className="truncate">{obj.name}</span>
+                                                            </button>
+                                                        ))
+                                                    ) : (
+                                                        <div className="px-3 py-1 text-[10px] text-neutral-600 italic">No {type}s</div>
+                                                    )
+                                                ) : (
+                                                    // Triggers and Indexes nested by table
+                                                    tables.map(tableName => {
+                                                        const tableObjects = typeObjects.filter(o => o.tbl_name === tableName);
+                                                        
+                                                        return (
+                                                            <div key={tableName} className="space-y-0.5">
+                                                                <div className="group/table flex items-center justify-between">
+                                                                    <button 
+                                                                        onClick={() => toggleTable(`${type}:${tableName}`)}
+                                                                        className="flex-1 flex items-center space-x-1.5 px-2 py-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-300 transition-colors"
+                                                                    >
+                                                                        <svg className={`w-2.5 h-2.5 transition-transform duration-200 ${expandedTables[`${type}:${tableName}`] ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                                                        <span className="truncate">{tableName} {tableObjects.length > 0 && `(${tableObjects.length})`}</span>
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={(e) => { e.stopPropagation(); onAddObject(type as any, tableName); }}
+                                                                        className="opacity-0 group-hover/table:opacity-100 p-1 hover:bg-emerald-500/10 text-emerald-500 rounded transition-all mr-1"
+                                                                        title={`Add ${type}`}
+                                                                    >
+                                                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                                                    </button>
+                                                                </div>
+
+                                                                {expandedTables[`${type}:${tableName}`] && (
+                                                                    <div className="pl-3 border-l border-neutral-800/50 ml-1.5 mt-0.5">
+                                                                        {tableObjects.length > 0 ? (
+                                                                            tableObjects.map(obj => (
+                                                                                <button
+                                                                                    key={obj.name}
+                                                                                    onClick={() => onSelectObject(obj)}
+                                                                                    className={`w-full text-left px-3 py-1 text-xs rounded transition-all duration-200 flex items-center space-x-2 ${
+                                                                                        activeObject?.name === obj.name && activeObject?.type === type
+                                                                                        ? type === 'trigger' 
+                                                                                            ? 'bg-orange-500/10 text-orange-400 border-l border-orange-500/50'
+                                                                                            : 'bg-blue-500/10 text-blue-400 border-l border-blue-500/50'
+                                                                                        : 'text-neutral-500 hover:bg-neutral-800/50 hover:text-neutral-300'
+                                                                                    }`}
+                                                                                >
+                                                                                    {type === 'trigger' ? (
+                                                                                        <svg className="w-3 h-3 opacity-50 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                                                                    ) : (
+                                                                                        <svg className="w-3 h-3 opacity-50 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                                                                    )}
+                                                                                    <span className="truncate">{obj.name}</span>
+                                                                                </button>
+                                                                            ))
+                                                                        ) : (
+                                                                            <div className="px-3 py-1 text-[10px] text-neutral-600 italic">No {type}s</div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>

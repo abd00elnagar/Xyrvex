@@ -3,7 +3,7 @@ import { openDatabase, getCurrentDbPath, getDatabase, closeDatabase } from "../d
 import { getTableNames, executeRawQuery, getTableData, insertDefaultRow } from "../db/queries";
 import { beginTransaction, commitAndContinue, commitOnly, rollbackTransaction } from "../db/transaction";
 import { loadSession, saveSession } from "../session";
-import type { OpenResult, OpResult, TerminalResult, SessionData, ColumnDef, TableData, SqlSnippet } from "../../shared/types";
+import type { OpenResult, OpResult, TerminalResult, SessionData, ColumnDef, TableData, SqlSnippet, DbObject } from "../../shared/types";
 import { basename, join } from "node:path";
 import { copyFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -328,6 +328,56 @@ export const createDbHandlers = (rpc: AppRPC) => ({
             return { ok: true };
         }
         return { ok: false };
+    },
+
+    objectsList: async (): Promise<{ objects: DbObject[] }> => {
+        try {
+            const schemaResult = executeRawQuery("SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE type IN ('trigger', 'index', 'view')");
+            const objects: DbObject[] = (schemaResult.rows || []).map((row: any) => ({
+                type: row[0] as any,
+                name: row[1],
+                tbl_name: row[2],
+                sql: row[3] || ""
+            }));
+
+            // Add functions
+            try {
+                const funcResult = executeRawQuery("SELECT name, builtin, type FROM pragma_function_list()");
+                if (funcResult.rows) {
+                    const functions: DbObject[] = funcResult.rows.map((row: any) => ({
+                        type: 'function',
+                        name: row[0],
+                        tbl_name: row[1] ? 'Built-in' : 'User-defined',
+                        sql: `-- Type: ${row[2]}`
+                    }));
+                    objects.push(...functions);
+                }
+            } catch (e) {
+                console.warn("[dbHandlers] Failed to list functions:", e);
+            }
+
+            return { objects };
+        } catch (err) {
+            console.error("[dbHandlers] objectsList failed:", err);
+            return { objects: [] };
+        }
+    },
+
+    objectDrop: async (params: { type: string; name: string }): Promise<OpResult> => {
+        const { type, name } = params;
+        const validTypes = ['trigger', 'index', 'view'];
+        if (!validTypes.includes(type.toLowerCase())) {
+            return { ok: false, error: `Invalid object type: ${type}` };
+        }
+        
+        try {
+            // SQL standard: DROP TRIGGER name, DROP INDEX name, DROP VIEW name
+            executeRawQuery(`DROP ${type.toUpperCase()} IF EXISTS "${name}"`);
+            return { ok: true };
+        } catch (err) {
+            console.error(`[dbHandlers] objectDrop failed for ${type} ${name}:`, err);
+            return { ok: false, error: String(err) };
+        }
     },
 
     snippetExport: async (params: { snippet: SqlSnippet }): Promise<OpResult> => {

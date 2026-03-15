@@ -23,6 +23,8 @@ export interface AppSchema {
             sessionGet: { params: {}; response: SessionData };
             dialogResponse: { params: { id: string; choice: number }; response: { ok: boolean } };
             snippetExport: { params: { snippet: SqlSnippet }; response: OpResult };
+            objectsList: { params: {}; response: { objects: DbObject[] } };
+            objectDrop: { params: { type: string; name: string }; response: OpResult };
             snippetsGet: { params: { dbPath: string | null }; response: { snippets: SqlSnippet[] } };
             snippetsSave: { params: { dbPath: string | null; snippets: SqlSnippet[] }; response: OpResult };
         };
@@ -113,4 +115,11 @@ export interface SqlSnippet {
     id: string;
     name: string;
     code: string;
+}
+
+export interface DbObject {
+    type: 'trigger' | 'index' | 'view' | 'function';
+    name: string;
+    tbl_name: string;
+    sql: string;
 }

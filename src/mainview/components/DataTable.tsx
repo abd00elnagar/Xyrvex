@@ -7,9 +7,10 @@ interface DataTableProps {
     onRowDelete?: (rowId: number) => void;
     onRowInsert?: () => void;
     onAddColumn?: () => void;
+    onDropColumn?: (columnName: string) => void;
 }
 
-export function DataTable({ data, onCellUpdate, onRowDelete, onRowInsert, onAddColumn }: DataTableProps) {
+export function DataTable({ data, onCellUpdate, onRowDelete, onRowInsert, onAddColumn, onDropColumn }: DataTableProps) {
     const [editingCell, setEditingCell] = useState<{ rowIndex: number, colIndex: number } | null>(null);
     const [editValue, setEditValue] = useState<string>('');
     const inputRef = useRef<HTMLInputElement>(null);
@@ -80,9 +81,20 @@ export function DataTable({ data, onCellUpdate, onRowDelete, onRowInsert, onAddC
                                 <div className="flex items-center space-x-2">
                                     <span className={col.name === 'rowid' ? 'opacity-50' : ''}>{col.name}</span>
                                     {col.name !== 'rowid' && (
-                                        <span className={`text-[8px] font-mono uppercase px-1.5 py-0.5 rounded border ${getTypeColor(col.type)} shadow-sm shadow-black/20`}>
-                                            {col.type || 'RAW'}
-                                        </span>
+                                        <div className="flex items-center space-x-2">
+                                            <span className={`text-[8px] font-mono uppercase px-1.5 py-0.5 rounded border ${getTypeColor(col.type)} shadow-sm shadow-black/20`}>
+                                                {col.type || 'RAW'}
+                                            </span>
+                                            {onDropColumn && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onDropColumn(col.name); }}
+                                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-neutral-800 rounded text-neutral-500 hover:text-red-400 transition-all"
+                                                    title="Drop Column"
+                                                >
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                </button>
+                                            )}
+                                        </div>
                                     )}
                                     {col.primaryKey && (
                                         <span className="text-amber-500 filter drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]" title="Primary Key">🔑</span>

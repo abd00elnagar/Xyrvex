@@ -11,6 +11,8 @@ import { AddColumnModal } from "./components/AddColumnModal";
 import { SaveAsModal } from "./components/SaveAsModal";
 import { Menu } from "./components/Menu";
 import { Dialog, DialogType } from "./components/Dialog";
+import { ObjectExplorerView } from "./components/ObjectExplorerView";
+import type { DbObject } from "../shared/types";
 
 const rpc = Electroview.defineRPC<AppSchema>({
 	handlers: {
@@ -49,6 +51,10 @@ function App() {
 	const [activeSnippetId, setActiveSnippetId] = useState<string | null>(null);
 	const lastLoadedDbPathForSnippets = useRef<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	// Objects State
+	const [objects, setObjects] = useState<DbObject[]>([]);
+	const [activeObject, setActiveObject] = useState<DbObject | null>(null);
 
 	// Dialog State
 	const [dialog, setDialog] = useState<{
@@ -120,15 +126,23 @@ function App() {
 		reader.readAsText(file);
 	};
 
-	const handleSelectTable = useCallback(async (tableName: string) => {
-		console.log(`[App] handleSelectTable: "${tableName}"`);
-		setActiveTable(tableName);
-		setActiveSnippetId(null); // Deselect snippet when a table is selected
+	const fetchTableData = useCallback(async (tableName: string) => {
 		try {
 			const data = await rpc.request.tableFetchAll({ tableName });
 			setTableData(data);
 		} catch (err) {
 			console.error("[App] Error fetching table data:", err);
+		}
+	}, []);
+
+
+
+	const loadObjects = useCallback(async () => {
+		try {
+			const { objects } = await rpc.request.objectsList({});
+			setObjects(objects);
+		} catch (err) {
+			console.error("[App] loadObjects failed:", err);
 		}
 	}, []);
 
@@ -175,7 +189,7 @@ function App() {
 		}
 	}, [activeTable, tableData]);
 
-	const handleRowDelete = useCallback(async (rowId: number) => {
+	const handleDeleteRow = useCallback(async (rowId: number) => {
 		if (!activeTable) return;
 		
 		showDialog({
@@ -200,7 +214,7 @@ function App() {
 		});
 	}, [activeTable, showDialog]);
 
-	const handleRowInsert = useCallback(async () => {
+	const handleInsertRow = useCallback(async () => {
 		if (!activeTable) return;
 		try {
 			const result = await rpc.request.rowInsert({ tableName: activeTable });
@@ -282,7 +296,7 @@ function App() {
 			console.error("[App] Create table failed:", err);
 			return false;
 		}
-	}, [handleSelectTable]);
+	}, [fetchTableData]);
 
 	const handleDropTable = useCallback(async (tableName: string) => {
 		showDialog({
@@ -326,6 +340,26 @@ function App() {
 		}
 	}, [activeTable]);
 
+	const handleDropColumn = useCallback(async (columnName: string) => {
+		if (!activeTable) return;
+		showDialog({
+			type: 'confirm',
+			title: 'Drop Column',
+			message: `Are you sure you want to drop column "${columnName}"? This action cannot be undone.`,
+			onConfirm: async () => {
+				try {
+					const result = await rpc.request.columnDrop({ tableName: activeTable, columnName });
+					if (result.ok) {
+						const data = await rpc.request.tableFetchAll({ tableName: activeTable! });
+						setTableData(data);
+					}
+				} catch (err) {
+					console.error("[App] Drop column failed:", err);
+				}
+			}
+		});
+	}, [activeTable, showDialog]);
+
 	const handleSave = useCallback(async () => {
 		console.log("[App] handleSave");
 		try {
@@ -351,12 +385,81 @@ function App() {
 
 	// --- Snippets Handlers ---
 
-	const handleSelectSnippet = useCallback((id: string) => {
-		setActiveSnippetId(id);
-		setActiveTable(null); // Deselect table when snippet is selected
-		// Optionally close the bottom terminal if standard UX implies it
-		setIsTerminalOpen(false);
+	const handleSelectTable = (tableName: string) => {
+		setActiveSnippetId(null);
+		setActiveObject(null);
+		setActiveTable(tableName);
+		fetchTableData(tableName);
+	};
+
+	const handleSelectSnippet = (snippetId: string) => {
+		setActiveTable(null);
+		setActiveObject(null);
+		setActiveSnippetId(snippetId);
+	};
+
+	const handleSelectObject = useCallback((obj: DbObject | null) => {
+		setActiveObject(obj);
+		setActiveTable(null);
+		setActiveSnippetId(null);
 	}, []);
+
+	const handleAddObject = useCallback((type: 'trigger' | 'index' | 'view' | 'function', tableName?: string) => {
+		let sql = "";
+		const placeholderName = `new_${type}_${Date.now().toString().slice(-4)}`;
+		
+		if (type === 'trigger') {
+			sql = `-- Trigger for ${tableName || 'table_name'}\nCREATE TRIGGER ${placeholderName}\nAFTER INSERT ON "${tableName || 'table_name'}"\nBEGIN\n  -- Trigger logic here\nEND;`;
+		} else if (type === 'index') {
+			sql = `-- Index for ${tableName || 'table_name'}\nCREATE INDEX ${placeholderName} ON "${tableName || 'table_name'}"(column_name);`;
+		} else if (type === 'view') {
+			sql = `-- Create View\nCREATE VIEW ${placeholderName} AS\nSELECT * FROM "${tables[0] || 'table_name'}";`;
+		} else if (type === 'function') {
+			sql = `-- User Defined Function (Application Level)\n-- SQLite does not store functions in the DB file.\n-- You can define them in your app code or use them in queries.\nSELECT ${placeholderName}(column_name) FROM table_name;`;
+		}
+
+		const newSnippet: SqlSnippet = {
+			id: `add-obj-${Date.now()}`,
+			name: `SQL: Add ${type}`,
+			code: sql
+		};
+		setSnippets(prev => [...prev, newSnippet]);
+		setActiveSnippetId(newSnippet.id);
+		setActiveTable(null);
+		setActiveObject(null);
+	}, [tables]);
+
+	const handleDropObject = async (type: string, name: string) => {
+		showDialog({
+			type: 'confirm',
+			title: `Drop ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+			message: `Are you sure you want to drop the ${type} "${name}"? This action cannot be undone.`,
+			onConfirm: async () => {
+				try {
+					const result = await rpc.request.objectDrop({ type, name });
+					if (result.ok) {
+						setActiveObject(null);
+						loadObjects();
+					} else {
+						showDialog({
+							type: 'error',
+							title: 'Drop Failed',
+							message: result.error || 'Check console for details'
+						});
+					}
+				} catch (err) {
+					console.error("[App] objectDrop failed:", err);
+				}
+			}
+		});
+	};
+
+	const handleCopySql = (sql: string) => {
+		navigator.clipboard.writeText(sql).then(() => {
+			// Maybe a toast would be nice, but for now console.log or just assume success
+			console.log("SQL copied to clipboard");
+		});
+	};
 
 	const handleAddSnippet = useCallback(() => {
 		const newSnippet: SqlSnippet = {
@@ -553,11 +656,14 @@ function App() {
 		const onDbOpened = (payload: OpenResult) => {
 			console.log("[App] Push message dbOpened:", payload);
 			if (payload.ok) {
+				setDbPath(payload.dbPath);
 				setDbName(payload.dbName);
-				setDbPath(payload.dbPath || null);
 				setTables(payload.tables);
 				setActiveTable(null);
+				setActiveSnippetId(null);
+				setActiveObject(null);
 				setTableData({ columns: [], rows: [] });
+				loadObjects();
 				setIsNewDbModalOpen(false);
 				
 				if (payload.dbPath) {
@@ -571,7 +677,7 @@ function App() {
 					setActiveSnippetId(null);
 					lastLoadedDbPathForSnippets.current = null;
 				}
-			} else {
+			} else if (payload.error) {
 				console.error("[App] dbOpened error:", payload.error);
 				showDialog({
 					type: 'error',
@@ -626,6 +732,7 @@ function App() {
 						setDbName(res.dbName);
 						setDbPath(res.dbPath || null);
 						setTables(res.tables);
+						loadObjects();
 						
 						rpc.request.snippetsGet({ dbPath: session.lastOpenedPath }).then((snipRes: { snippets: SqlSnippet[] }) => {
 							setSnippets(snipRes.snippets);
@@ -696,59 +803,66 @@ function App() {
 					onExportSnippet={handleExportSnippet}
 					onDeleteSnippet={handleDeleteSnippet}
 					onRenameSnippet={handleRenameSnippet}
+					// Objects
+					objects={objects}
+					activeObject={activeObject}
+					onSelectObject={handleSelectObject}
+					onRefreshObjects={loadObjects}
+					onAddObject={handleAddObject}
 				/>
 
 				{/* Main Content Area */}
-				<main className="flex-1 flex flex-col bg-neutral-900/50 overflow-hidden relative">
-					{/* Ambient backgrounds */}
-					<div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-
-					<div className="flex-1 flex flex-col overflow-hidden relative z-10">
-						{activeSnippetId ? (
-							<Terminal
-								isOpen={true}
-								isFullPage={true}
-								initialSql={snippets.find(s => s.id === activeSnippetId)?.code || ""}
-								onSqlChange={(code) => handleSnippetCodeChange(activeSnippetId, code)}
-								onExecute={handleExecuteQuery}
-							/>
-						) : activeTable ? (
-							<DataTable
+				<main className="flex-1 flex flex-col min-w-0 bg-neutral-900 border-l border-neutral-800 shadow-inner overflow-hidden relative">
+					{!dbPath ? (
+						<div className="flex-1 flex flex-col items-center justify-center text-neutral-500 bg-neutral-900/50">
+							<div className="w-16 h-16 rounded-2xl bg-neutral-800/50 flex items-center justify-center mb-6 border border-neutral-800 shadow-inner">
+								<svg className="w-8 h-8 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 7h16M4 11h16m-16 4h16" /></svg>
+							</div>
+							<p className="text-sm font-medium tracking-wide">Open or create a database to begin</p>
+						</div>
+					) : activeSnippetId ? (
+						<Terminal 
+							isOpen={true}
+							isFullPage={true}
+							initialSql={snippets.find(s => s.id === activeSnippetId)?.code || ""}
+							onSqlChange={(sql) => handleSnippetCodeChange(activeSnippetId, sql)}
+							onExecute={async (sql) => {
+								return rpc.request.terminalExec({ sql });
+							}}
+						/>
+					) : activeObject ? (
+						<ObjectExplorerView 
+							object={activeObject}
+							onDrop={handleDropObject}
+							onCopySql={handleCopySql}
+						/>
+					) : activeTable ? (
+						<DataTable 
 							data={tableData}
 							onCellUpdate={handleCellUpdate}
-							onRowDelete={handleRowDelete}
-							onRowInsert={handleRowInsert}
+							onRowDelete={handleDeleteRow}
+							onRowInsert={handleInsertRow}
 							onAddColumn={() => setIsAddColumnModalOpen(true)}
+							onDropColumn={handleDropColumn}
 						/>
-						) : (
-							<div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
-								<div className="w-20 h-20 bg-neutral-800/50 rounded-2xl flex items-center justify-center mb-6 border border-neutral-700/50 shadow-xl">
-									<svg className="w-10 h-10 text-neutral-500 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zM4 7h16M4 11h16m-16 4h16" />
-									</svg>
-								</div>
-								<h3 className="text-lg font-semibold text-neutral-300 mb-2">Ready to explore</h3>
-								<p className="text-sm text-neutral-500 leading-relaxed mb-8 max-w-sm">
-									{tables.length > 0
-										? "Select a table from the sidebar to view its structure and data."
-										: "Open a database to start managing your SQLite tables and data."}
-								</p>
+					) : (
+						<div className="flex-1 flex flex-col items-center justify-center text-neutral-500 slide-in">
+							<svg className="w-12 h-12 opacity-10 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16m-7 6h7" /></svg>
+							<p className="text-sm">Select a table, object, or snippet to begin exploration</p>
+							{tables.length === 0 && (
+								<button
+									onClick={handleOpenDb}
+									className="mt-6 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-emerald-900/20 flex items-center space-x-2"
+								>
+									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+									<span>Select SQLite File</span>
+								</button>
+							)}
+						</div>
+					)}
 
-								{tables.length === 0 && (
-									<button
-										onClick={handleOpenDb}
-										className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-bold transition-all shadow-lg shadow-emerald-900/20 flex items-center space-x-2"
-									>
-										<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
-										<span>Select SQLite File</span>
-									</button>
-								)}
-							</div>
-						)}
-					</div>
-
-					{/* Hide bottom terminal if a snippet is active (full page terminal) */}
-					{!activeSnippetId && (
+					{/* Hide bottom terminal if a snippet is active (full page terminal) or if object explorer is open */}
+					{!activeSnippetId && !activeObject && (
 						<Terminal
 							isOpen={isTerminalOpen}
 							onToggle={() => setIsTerminalOpen(!isTerminalOpen)}
