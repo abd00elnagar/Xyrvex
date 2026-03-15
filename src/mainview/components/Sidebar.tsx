@@ -14,7 +14,7 @@ interface SidebarProps {
     activeObject: DbObject | null;
     onSelectObject: (object: DbObject | null) => void;
     onRefreshObjects: () => void;
-    onAddObject: (type: 'trigger' | 'index' | 'view' | 'function', tableName?: string) => void;
+    onAddObject: (type: 'trigger' | 'index' | 'view', tableName?: string) => void;
     // Snippets
     snippets: SqlSnippet[];
     activeSnippetId: string | null;
@@ -274,7 +274,7 @@ export function Sidebar({
 
                     {isObjectsOpen && (
                         <div className="pl-4 space-y-1">
-                            {['trigger', 'index', 'view', 'function'].map(type => {
+                            {['trigger', 'index', 'view'].map(type => {
                                 const typeObjects = objects.filter(o => o.type === type);
                                 
                                 return (
@@ -287,22 +287,12 @@ export function Sidebar({
                                                 <svg className={`w-3 h-3 transition-transform duration-200 ${expandedTypes[type] ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                                 <span className="capitalize">{type}s ({typeObjects.length})</span>
                                             </button>
-                                            
-                                            {(type === 'view' || type === 'function') && (
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); onAddObject(type as any); }}
-                                                    className="opacity-0 group-hover/type:opacity-100 p-1 hover:bg-emerald-500/10 text-emerald-500 rounded transition-all mr-1"
-                                                    title={`Add ${type}`}
-                                                >
-                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                                </button>
-                                            )}
                                         </div>
 
                                         {expandedTypes[type] && (
                                             <div className="pl-3 space-y-0.5 border-l border-neutral-800 ml-1.5 mt-0.5">
-                                                {(type === 'view' || type === 'function') ? (
-                                                    // Views and Functions are flat
+                                                {type === 'view' ? (
+                                                    // Views are flat
                                                     typeObjects.length > 0 ? (
                                                         typeObjects.map(obj => (
                                                             <button
@@ -310,22 +300,16 @@ export function Sidebar({
                                                                 onClick={() => onSelectObject(obj)}
                                                                 className={`w-full text-left px-3 py-1 text-xs rounded transition-all duration-200 flex items-center space-x-2 ${
                                                                     activeObject?.name === obj.name && activeObject?.type === type
-                                                                    ? type === 'view' 
-                                                                        ? 'bg-purple-500/10 text-purple-400 border-l border-purple-500/50'
-                                                                        : 'bg-emerald-500/10 text-emerald-400 border-l border-emerald-500/50'
+                                                                    ? 'bg-purple-500/10 text-purple-400 border-l border-purple-500/50'
                                                                     : 'text-neutral-500 hover:bg-neutral-800/50 hover:text-neutral-300'
                                                                 }`}
                                                             >
-                                                                {type === 'view' ? (
-                                                                    <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                                                                ) : (
-                                                                    <svg className="w-3 h-3 opacity-50 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                                                                )}
+                                                                <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                                                                 <span className="truncate">{obj.name}</span>
                                                             </button>
                                                         ))
                                                     ) : (
-                                                        <div className="px-3 py-1 text-[10px] text-neutral-600 italic">No {type}s</div>
+                                                        <div className="px-3 py-1 text-[10px] text-neutral-600 italic">No views</div>
                                                     )
                                                 ) : (
                                                     // Triggers and Indexes nested by table

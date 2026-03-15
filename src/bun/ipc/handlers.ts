@@ -340,22 +340,6 @@ export const createDbHandlers = (rpc: AppRPC) => ({
                 sql: row[3] || ""
             }));
 
-            // Add functions
-            try {
-                const funcResult = executeRawQuery("SELECT name, builtin, type FROM pragma_function_list()");
-                if (funcResult.rows) {
-                    const functions: DbObject[] = funcResult.rows.map((row: any) => ({
-                        type: 'function',
-                        name: row[0],
-                        tbl_name: row[1] ? 'Built-in' : 'User-defined',
-                        sql: `-- Type: ${row[2]}`
-                    }));
-                    objects.push(...functions);
-                }
-            } catch (e) {
-                console.warn("[dbHandlers] Failed to list functions:", e);
-            }
-
             return { objects };
         } catch (err) {
             console.error("[dbHandlers] objectsList failed:", err);

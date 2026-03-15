@@ -139,12 +139,20 @@ function App() {
 
 	const loadObjects = useCallback(async () => {
 		try {
-			const { objects } = await rpc.request.objectsList({});
-			setObjects(objects);
+			const { objects: newObjects } = await rpc.request.objectsList({});
+			setObjects(newObjects);
+			
+			// Refresh active object if its definition changed
+			if (activeObject) {
+				const updatedActive = newObjects.find((o: DbObject) => o.name === activeObject.name && o.type === activeObject.type);
+				if (updatedActive) {
+					setActiveObject(updatedActive);
+				}
+			}
 		} catch (err) {
 			console.error("[App] loadObjects failed:", err);
 		}
-	}, []);
+	}, [activeObject]);
 
 	const handleCellUpdate = useCallback(async (column: string, value: any, rowId: number) => {
 		if (!activeTable) return;
@@ -406,7 +414,7 @@ function App() {
 		setActiveSnippetId(null);
 	}, []);
 
-	const handleAddObject = useCallback((type: 'trigger' | 'index' | 'view' | 'function', tableName?: string) => {
+	const handleAddObject = useCallback((type: 'trigger' | 'index' | 'view', tableName?: string) => {
 		let sql = "";
 		const placeholderName = `new_${type}_${Date.now().toString().slice(-4)}`;
 		
@@ -416,8 +424,6 @@ function App() {
 			sql = `-- Index for ${tableName || 'table_name'}\nCREATE INDEX ${placeholderName} ON "${tableName || 'table_name'}"(column_name);`;
 		} else if (type === 'view') {
 			sql = `-- Create View\nCREATE VIEW ${placeholderName} AS\nSELECT * FROM "${tables[0] || 'table_name'}";`;
-		} else if (type === 'function') {
-			sql = `-- User Defined Function (Application Level)\n-- SQLite does not store functions in the DB file.\n-- You can define them in your app code or use them in queries.\nSELECT ${placeholderName}(column_name) FROM table_name;`;
 		}
 
 		const newSnippet: SqlSnippet = {
@@ -828,9 +834,7 @@ function App() {
 							isFullPage={true}
 							initialSql={snippets.find(s => s.id === activeSnippetId)?.code || ""}
 							onSqlChange={(sql) => handleSnippetCodeChange(activeSnippetId, sql)}
-							onExecute={async (sql) => {
-								return rpc.request.terminalExec({ sql });
-							}}
+							onExecute={handleExecuteQuery}
 						/>
 					) : activeObject ? (
 						<ObjectExplorerView 

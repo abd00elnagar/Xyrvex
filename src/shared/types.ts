@@ -118,7 +118,7 @@ export interface SqlSnippet {
 }
 
 export interface DbObject {
-    type: 'trigger' | 'index' | 'view' | 'function';
+    type: 'trigger' | 'index' | 'view';
     name: string;
     tbl_name: string;
     sql: string;
