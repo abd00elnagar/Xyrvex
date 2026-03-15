@@ -32,15 +32,16 @@ export function Sidebar({ tables, onSelectTable, activeTable, onOpenDb, onNewDb,
                     </div>
                 ) : (
                     tables.map(table => (
-                        <div key={table} className="group flex items-center">
+                        <div key={table} className="group flex items-stretch">
                             <button
                                 onClick={() => onSelectTable(table)}
-                                className={`flex-1 text-left px-3 py-2 rounded-l text-sm transition-all duration-200 flex items-center space-x-2 ${activeTable === table
-                                    ? 'bg-emerald-500/10 text-emerald-400 border-l border-t border-b border-emerald-500/20'
-                                    : 'text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-200 border border-transparent'
-                                    }`}
+                                className={`flex-1 text-left px-3 py-2 rounded-l text-sm transition-all duration-200 flex items-center space-x-2 border-l border-t border-b ${
+                                    activeTable === table
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                    : 'text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-200 border-transparent'
+                                }`}
                             >
-                                <svg className={`w-4 h-4 opacity-50 ${activeTable === table ? 'text-emerald-400' : 'text-neutral-500 group-hover:text-neutral-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className={`w-4 h-4 opacity-50 flex-shrink-0 ${activeTable === table ? 'text-emerald-400' : 'text-neutral-500 group-hover:text-neutral-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7h16M4 11h16m-16 4h16" />
                                 </svg>
@@ -51,10 +52,10 @@ export function Sidebar({ tables, onSelectTable, activeTable, onOpenDb, onNewDb,
                                     e.stopPropagation();
                                     onDropTable(table);
                                 }}
-                                className={`px-2 py-2.5 rounded-r transition-all duration-200 opacity-0 group-hover:opacity-100 border-r border-t border-b ${
+                                className={`px-2 flex items-center justify-center rounded-r transition-all duration-200 border-r border-t border-b ${
                                     activeTable === table 
-                                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-900 hover:text-red-500' 
-                                    : 'hover:bg-neutral-800/50 border-transparent text-neutral-600 hover:text-red-500'
+                                    ? 'opacity-100 bg-emerald-500/10 border-emerald-500/20 text-emerald-500/70 hover:text-red-500' 
+                                    : 'opacity-0 group-hover:opacity-100 hover:bg-neutral-800/50 border-transparent text-neutral-600 hover:text-red-500'
                                 }`}
                                 title="Drop Table"
                             >
