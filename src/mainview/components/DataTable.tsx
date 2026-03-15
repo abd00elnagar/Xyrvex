@@ -76,7 +76,7 @@ export function DataTable({ tableName, data, onCellUpdate, onRowDelete, onRowIns
                         {data.columns.map((col, i) => (
                             <th
                                 key={i}
-                                className={`px-4 py-3 border-b border-neutral-800 text-[10px] uppercase tracking-wider font-bold whitespace-nowrap ${col.name === 'rowid' ? 'text-neutral-600 w-16' : 'text-neutral-500'
+                                className={`px-4 py-3 border-b border-neutral-800 text-[10px] uppercase tracking-wider font-bold whitespace-nowrap ${col.name === 'rowid' ? 'text-neutral-400 w-16' : 'text-neutral-300'
                                     }`}
                             >
                                 <div className="flex items-center space-x-2">
@@ -120,7 +120,7 @@ export function DataTable({ tableName, data, onCellUpdate, onRowDelete, onRowIns
                                     return (
                                         <td
                                             key={colIndex}
-                                            className={`px-4 py-2 text-sm border-r border-neutral-800/30 font-mono relative ${isRowId ? 'text-neutral-600 bg-black/20' : 'text-neutral-300'
+                                            className={`px-4 py-2 text-sm border-r border-neutral-800/30 font-mono relative ${isRowId ? 'text-neutral-400 bg-black/20' : 'text-neutral-300'
                                                 } ${editingCell?.rowIndex === rowIndex && editingCell?.colIndex === colIndex
                                                     ? 'bg-emerald-500/10' : ''
                                                 }`}
