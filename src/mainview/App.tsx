@@ -8,6 +8,7 @@ import { Terminal } from "./components/Terminal";
 import { NewDbModal } from "./components/NewDbModal";
 import { CreateTableModal } from "./components/CreateTableModal";
 import { AddColumnModal } from "./components/AddColumnModal";
+import { Menu } from "./components/Menu";
 
 const rpc = Electroview.defineRPC<AppSchema>({
 	handlers: {
@@ -295,6 +296,28 @@ function App() {
 			console.error("[App] Redo failed:", err);
 		}
 	}, [redoStack, activeTable]);
+	
+	const handleMenuAction = useCallback((action: string) => {
+		console.log("[App] handleMenuAction:", action);
+		const h = handlersRef.current;
+		switch (action) {
+			case 'toggle-terminal': setIsTerminalOpen(p => !p); break;
+			case 'open-db': h.handleOpenDb(); break;
+			case 'new-db': h.handleNewDb(); break;
+			case 'save': h.handleSave(); break;
+			case 'undo': h.handleUndo(); break;
+			case 'redo': h.handleRedo(); break;
+			case 'toggle-autosave': h.toggleAutoSave(); break;
+			case 'refresh':
+				rpc.request.tableList({}).then(res => h.setTables(res.tables));
+				break;
+			case 'save-as':
+				rpc.request.dbSaveAs({}).then(res => {
+					if (res.ok) setIsDirty(false);
+				});
+				break;
+		}
+	}, []);
 
 	// Use a ref to store current state-dependent functions to avoid stale closures in RPC listeners
 	const handlersRef = useRef({
@@ -304,6 +327,7 @@ function App() {
 		handleUndo,
 		handleRedo,
 		toggleAutoSave,
+		handleMenuAction,
 		setTables,
 		activeTable
 	});
@@ -316,20 +340,39 @@ function App() {
 			handleUndo,
 			handleRedo,
 			toggleAutoSave,
+			handleMenuAction,
 			setTables,
 			activeTable
 		};
-	}, [handleOpenDb, handleNewDb, handleSave, handleUndo, handleRedo, toggleAutoSave, activeTable]);
+	}, [handleOpenDb, handleNewDb, handleSave, handleUndo, handleRedo, toggleAutoSave, handleMenuAction, activeTable]);
 
 	// Keyboard shortcuts
 	useEffect(() => {
 		const handleGlobalKeydown = (e: KeyboardEvent) => {
 			const isMod = e.ctrlKey || e.metaKey;
-			if (isMod && e.key === 'z') {
-				if (e.shiftKey) handlersRef.current.handleRedo();
-				else handlersRef.current.handleUndo();
-			} else if (isMod && (e.key === 'y' || (e.key === 'Z' && e.shiftKey))) {
-				handlersRef.current.handleRedo();
+			const key = e.key.toLowerCase();
+			const h = handlersRef.current;
+
+			if (isMod && key === 'z') {
+				if (e.shiftKey) h.handleRedo();
+				else h.handleUndo();
+			} else if (isMod && (key === 'y')) {
+				h.handleRedo();
+			} else if (isMod && key === 'n') {
+				e.preventDefault();
+				h.handleNewDb();
+			} else if (isMod && key === 'o') {
+				e.preventDefault();
+				h.handleOpenDb();
+			} else if (isMod && key === 's') {
+				e.preventDefault();
+				h.handleSave();
+			} else if (isMod && key === 'r') {
+				e.preventDefault();
+				h.handleMenuAction('refresh');
+			} else if (isMod && e.key === '`') {
+				e.preventDefault();
+				h.handleMenuAction('toggle-terminal');
 			}
 		};
 		window.addEventListener('keydown', handleGlobalKeydown);
@@ -341,20 +384,7 @@ function App() {
 		console.log("[App] Initializing RPC listeners (on mount)");
 		
 		const onMenuAction = (payload: { action: string }) => {
-			console.log("[App] menuAction received:", payload.action);
-			const h = handlersRef.current;
-			switch (payload.action) {
-				case 'toggle-terminal': setIsTerminalOpen(p => !p); break;
-				case 'open-db': h.handleOpenDb(); break;
-				case 'new-db': h.handleNewDb(); break;
-				case 'save': h.handleSave(); break;
-				case 'undo': h.handleUndo(); break;
-				case 'redo': h.handleRedo(); break;
-				case 'toggle-autosave': h.toggleAutoSave(); break;
-				case 'refresh':
-					rpc.request.tableList({}).then(res => h.setTables(res.tables));
-					break;
-			}
+			handlersRef.current.handleMenuAction(payload.action);
 		};
 
 		const onDbDirtyChanged = (p: { isDirty: boolean }) => {
@@ -417,6 +447,7 @@ function App() {
 
 	return (
 		<div className="flex flex-col h-full bg-neutral-900 overflow-hidden font-sans selection:bg-emerald-500/30">
+			<Menu onAction={handleMenuAction} />
 			<Header
 				dbName={dbName}
 				dbPath={dbPath}
