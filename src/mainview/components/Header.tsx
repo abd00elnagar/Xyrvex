@@ -13,7 +13,7 @@ export function Header({ dbName, dbPath, isDirty, isAutoSave, onSave, onToggleAu
             <div className="flex items-center justify-between w-full">
                 <div className="flex items-center space-x-3 overflow-hidden">
                     <span className="text-xs font-bold text-neutral-500 uppercase tracking-[0.2em] bg-neutral-900 border border-neutral-800 px-2 py-0.5 rounded shadow-sm flex-shrink-0">
-                        SQL Editor
+                        Xyrvex
                     </span>
                     <div className="h-4 w-[1px] bg-neutral-800 mx-1 flex-shrink-0" />
                     <div className="flex items-center space-x-3">

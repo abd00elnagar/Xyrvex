@@ -78,7 +78,7 @@ export function SettingsModal({ isOpen, onClose, settings, onSettingsChange }: S
                         <div className="space-y-4">
                             <div>
                                 <div className="flex justify-between mb-1">
-                                    <label className="text-sm text-neutral-300">SQL Editor Font Size</label>
+                                    <label className="text-sm text-neutral-300">Xyrvex Font Size</label>
                                     <span className="text-xs text-neutral-500">{settings.fontSizeSql}px</span>
                                 </div>
                                 <input 

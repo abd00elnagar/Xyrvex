@@ -78,7 +78,7 @@ export function Menu({ onAction }: MenuProps) {
                             <path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zM4 7h16M4 11h16m-16 4h16" />
                         </svg>
                     </div>
-                    <span className="text-xs font-bold text-neutral-300 tracking-wider">SQL EDITOR</span>
+                    <span className="text-xs font-bold text-neutral-300 tracking-wider">XYRVEX</span>
                 </div>
 
                 {menus.map((menu) => (

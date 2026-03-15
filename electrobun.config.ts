@@ -2,8 +2,8 @@ import type { ElectrobunConfig } from "electrobun";
 
 export default {
 	app: {
-		name: "SQL Editor",
-		identifier: "com.sqleditor.app",
+		name: "Xyrvex",
+		identifier: "com.xyrvex.app",
 		version: "1.0.0",
 	},
 	build: {

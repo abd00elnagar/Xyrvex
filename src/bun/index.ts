@@ -78,7 +78,7 @@ rpc.setRequestHandler({
 const url = await getMainViewUrl();
 
 const mainWindow = new BrowserWindow({
-	title: "SQL Editor",
+	title: "Xyrvex",
 	url,
 	rpc,
 	frame: {
@@ -148,4 +148,4 @@ Electrobun.events.on("before-quit", async (e: any) => {
 	}
 });
 
-console.log("SQL Editor started with HMR and correct RPC setup!");
+console.log("Xyrvex started with HMR and correct RPC setup!");

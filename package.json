@@ -1,7 +1,7 @@
 {
-	"name": "sql-editor",
+	"name": "xyrvex",
 	"version": "2.2.0",
-	"description": "SQL Editor App built with Electrobun, React, and Tailwind",
+	"description": "Xyrvex SQL Editor built with Electrobun, React, and Tailwind",
 	"scripts": {
 		"start": "vite build && electrobun dev",
 		"dev": "electrobun dev --watch",
