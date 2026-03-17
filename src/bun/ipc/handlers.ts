@@ -3,7 +3,7 @@ import { openDatabase, getCurrentDbPath, getDatabase, closeDatabase } from "../d
 import { getTableNames, executeRawQuery, getTableData, insertDefaultRow } from "../db/queries";
 import { beginTransaction, commitAndContinue, commitOnly, rollbackTransaction } from "../db/transaction";
 import { loadSession, saveSession, loadSettings, saveSettings } from "../session";
-import type { OpenResult, OpResult, TerminalResult, SessionData, AppSettings, ColumnDef, TableData, SqlSnippet, DbObject } from "../../shared/types";
+import type { OpenResult, OpResult, TerminalResult, SessionData, AppSettings, ColumnDef, TableData, SqlSnippet, DbObject, FullSchema } from "../../shared/types";
 import { basename, join } from "node:path";
 import { copyFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -570,6 +570,37 @@ export const createDbHandlers = (rpc: AppRPC) => ({
             return { ok: true };
         } catch (e) {
             return { ok: false, error: String(e) };
+        }
+    },
+    schemaGet: async (): Promise<FullSchema> => {
+        try {
+            const { getFullSchema } = await import("../db/queries");
+            return getFullSchema();
+        } catch (e) {
+            console.error("[dbHandlers] schemaGet failed:", e);
+            return { tables: [] };
+        }
+    },
+    positionsSave: async (params: { dbPath: string; positions: Record<string, { x: number; y: number }> }): Promise<OpResult> => {
+        try {
+            const session = await loadSession();
+            const currentPositions = session.schemaPositions || {};
+            currentPositions[params.dbPath] = params.positions;
+            await saveSession({ schemaPositions: currentPositions });
+            return { ok: true };
+        } catch (e) {
+            return { ok: false, error: String(e) };
+        }
+    },
+    positionsGet: async (params: { dbPath: string }): Promise<{ positions: Record<string, { x: number; y: number }> }> => {
+        try {
+            const session = await loadSession();
+            if (!session.schemaPositions || !session.schemaPositions[params.dbPath]) {
+                return { positions: {} };
+            }
+            return { positions: session.schemaPositions[params.dbPath] };
+        } catch (e) {
+            return { positions: {} };
         }
     }
 });

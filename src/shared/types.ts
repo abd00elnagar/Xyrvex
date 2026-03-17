@@ -29,6 +29,9 @@ export interface AppSchema {
             snippetsSave: { params: { dbPath: string | null; snippets: SqlSnippet[] }; response: OpResult };
             settingsGet: { params: {}; response: AppSettings };
             settingsSave: { params: { settings: Partial<AppSettings> }; response: OpResult };
+            schemaGet: { params: {}; response: FullSchema };
+            positionsSave: { params: { dbPath: string; positions: Record<string, { x: number; y: number }> }; response: OpResult };
+            positionsGet: { params: { dbPath: string }; response: { positions: Record<string, { x: number; y: number }> } };
         };
         messages: {};
     };
@@ -86,6 +89,27 @@ export interface ColumnDef {
 export type Row = (string | number | null)[];
 export type TableData = { columns: ColumnInfo[]; rows: Row[] };
 
+export interface ForeignKeyInfo {
+    id: number;
+    seq: number;
+    table: string;
+    from: string;
+    to: string;
+    onUpdate: string;
+    onDelete: string;
+    match: string;
+}
+
+export interface TableSchema {
+    name: string;
+    columns: ColumnInfo[];
+    foreignKeys: ForeignKeyInfo[];
+}
+
+export interface FullSchema {
+    tables: TableSchema[];
+}
+
 export interface TerminalResult {
     sql: string;
     columns?: string[];
@@ -109,6 +133,7 @@ export interface SessionData {
     windowMaximized: boolean;
     autoSave: boolean;
     snippets?: Record<string, SqlSnippet[]>;
+    schemaPositions?: Record<string, Record<string, { x: number; y: number }>>; // dbPath -> { tableName -> position }
 }
 
 export interface CellEditRecord {

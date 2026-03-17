@@ -72,6 +72,9 @@ rpc.setRequestHandler({
 	objectDrop: dbHandlers.objectDrop,
 	settingsGet: dbHandlers.settingsGet,
 	settingsSave: dbHandlers.settingsSave,
+	schemaGet: dbHandlers.schemaGet,
+	positionsSave: dbHandlers.positionsSave,
+	positionsGet: dbHandlers.positionsGet,
 });
 
 // Create the main application window

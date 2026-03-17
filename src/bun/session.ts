@@ -41,6 +41,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     accentColor: 'emerald',
     fontSizeSql: 14,
     fontSizeTable: 13,
+    fontSizeUI: 13,
     confirmDrop: true,
     autoRefresh: true
 };

@@ -193,4 +193,14 @@
     .titlebar-no-drag {
         -webkit-app-region: no-drag;
     }
+
+    /* Schema Explorer Optimizations */
+    .table-card {
+        will-change: transform;
+        backface-visibility: hidden;
+    }
+
+    .edge-path {
+        will-change: d;
+    }
 }

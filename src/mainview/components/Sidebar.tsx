@@ -3,6 +3,8 @@ import { DbObject, SqlSnippet } from '../../shared/types';
 
 interface SidebarProps {
     tables: string[];
+    isSchemaActive: boolean;
+    onSchemaClick: () => void;
     onSelectTable: (tableName: string) => void;
     activeTable: string | null;
     onOpenDb: () => void;
@@ -30,8 +32,8 @@ interface SidebarProps {
     onOpenSettings: () => void;
 }
 
-export function Sidebar({ 
-    tables, onSelectTable, activeTable, onOpenDb, onNewDb, onAddTable, onDropTable,
+export function Sidebar({
+    tables, isSchemaActive, onSchemaClick, onSelectTable, activeTable, onOpenDb, onNewDb, onAddTable, onDropTable,
     objects, activeObject, onSelectObject, onRefreshObjects, onAddObject,
     snippets, activeSnippetId, onSelectSnippet, onAddSnippet, onImportSnippet, onExportSnippet, onDeleteSnippet, onRenameSnippet,
     width, onResizeStart, onOpenSettings
@@ -39,7 +41,7 @@ export function Sidebar({
     const [isTablesOpen, setIsTablesOpen] = useState(true);
     const [isObjectsOpen, setIsObjectsOpen] = useState(true);
     const [isSnippetsOpen, setIsSnippetsOpen] = useState(true);
-    
+
     // Nested object toggle state
     const [expandedTypes, setExpandedTypes] = useState<Record<string, boolean>>({
         trigger: true,
@@ -50,7 +52,7 @@ export function Sidebar({
 
     const toggleType = (type: string) => setExpandedTypes(prev => ({ ...prev, [type]: !prev[type] }));
     const toggleTable = (table: string) => setExpandedTables(prev => ({ ...prev, [table]: !prev[table] }));
-    
+
     // Snippet Renaming State
     const [editingSnippetId, setEditingSnippetId] = useState<string | null>(null);
     const [editingName, setEditingName] = useState("");
@@ -65,12 +67,12 @@ export function Sidebar({
     };
 
     return (
-        <aside 
+        <aside
             className="border-r border-neutral-800 flex flex-col bg-neutral-950 flex-shrink-0 relative group/sidebar"
             style={{ width: `${width}px` }}
         >
             {/* Resize Handle */}
-            <div 
+            <div
                 className="absolute top-0 right-0 w-1 h-full cursor-col-resize z-50 hover:bg-emerald-500/50 transition-colors"
                 onMouseDown={(e) => {
                     e.preventDefault();
@@ -78,10 +80,29 @@ export function Sidebar({
                 }}
             />
             <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
-                
+                <button
+                    onClick={onSchemaClick}
+                    className={`w-full flex items-center justify-center space-x-2 py-2 px-4 transition-all duration-300 relative group ${isSchemaActive
+                            ? 'text-emerald-400 bg-emerald-500/5'
+                            : 'text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900/50'
+                        }`}
+                >
+                    {/* Minimalist Active Indicator */}
+                    {isSchemaActive && (
+                        <div className="absolute left-0 w-1 h-2/3 bg-emerald-500 rounded-r-full shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                    )}
+
+                    <svg className={`w-4 h-4 transition-colors ${isSchemaActive ? 'text-emerald-400' : 'text-neutral-500 group-hover:text-neutral-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zm0 0c0 2 1 3 3 3h10c2 0 3-1 3-3" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 12c0 2 1 3 3 3h10c2 0 3-1 3-3" />
+                    </svg>
+                    <span className="text-[11px] font-black uppercase tracking-widest">
+                        Schema Explorer
+                    </span>
+                </button>
                 {/* Tables Group */}
                 <div className="space-y-1">
-                    <button 
+                    <button
                         onClick={() => setIsTablesOpen(!isTablesOpen)}
                         className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-bold text-neutral-400 uppercase tracking-widest hover:text-neutral-200 transition-colors group"
                     >
@@ -90,7 +111,7 @@ export function Sidebar({
                             <span>Tables ({tables.length})</span>
                         </div>
                     </button>
-                    
+
                     {isTablesOpen && (
                         <div className="pl-4 space-y-0.5">
                             {tables.length === 0 ? (
@@ -102,11 +123,10 @@ export function Sidebar({
                                     <div key={table} className="group flex items-stretch">
                                         <button
                                             onClick={() => onSelectTable(table)}
-                                            className={`flex-1 text-left px-3 py-1.5 rounded-l text-sm transition-all duration-200 flex items-center space-x-2 border-l border-t border-b ${
-                                                activeTable === table
-                                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                                : 'text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-200 border-transparent'
-                                            }`}
+                                            className={`flex-1 text-left px-3 py-1.5 rounded-l text-sm transition-all duration-200 flex items-center space-x-2 border-l border-t border-b ${activeTable === table
+                                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                    : 'text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-200 border-transparent'
+                                                }`}
                                         >
                                             <svg className={`w-3.5 h-3.5 opacity-50 flex-shrink-0 ${activeTable === table ? 'text-emerald-400' : 'text-neutral-500 group-hover:text-neutral-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z" />
@@ -119,11 +139,10 @@ export function Sidebar({
                                                 e.stopPropagation();
                                                 onDropTable(table);
                                             }}
-                                            className={`px-2 flex items-center justify-center rounded-r transition-all duration-200 border-r border-t border-b ${
-                                                activeTable === table 
-                                                ? 'opacity-100 bg-emerald-500/10 border-emerald-500/20 text-emerald-500/70 hover:text-red-500' 
-                                                : 'opacity-0 group-hover:opacity-100 hover:bg-neutral-800/50 border-transparent text-neutral-600 hover:text-red-500'
-                                            }`}
+                                            className={`px-2 flex items-center justify-center rounded-r transition-all duration-200 border-r border-t border-b ${activeTable === table
+                                                    ? 'opacity-100 bg-emerald-500/10 border-emerald-500/20 text-emerald-500/70 hover:text-red-500'
+                                                    : 'opacity-0 group-hover:opacity-100 hover:bg-neutral-800/50 border-transparent text-neutral-600 hover:text-red-500'
+                                                }`}
                                             title="Drop Table"
                                         >
                                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,7 +152,7 @@ export function Sidebar({
                                     </div>
                                 ))
                             )}
-                            
+
                             {/* Add Table Button */}
                             <button
                                 onClick={onAddTable}
@@ -150,7 +169,7 @@ export function Sidebar({
 
                 {/* SQL Snippets Group */}
                 <div className="space-y-1 mt-4">
-                    <button 
+                    <button
                         onClick={() => setIsSnippetsOpen(!isSnippetsOpen)}
                         className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-bold text-neutral-400 uppercase tracking-widest hover:text-neutral-200 transition-colors group"
                     >
@@ -159,7 +178,7 @@ export function Sidebar({
                             <span>Snippets ({snippets?.length || 0})</span>
                         </div>
                     </button>
-                    
+
                     {isSnippetsOpen && (
                         <div className="pl-4 space-y-0.5">
                             {!snippets || snippets.length === 0 ? (
@@ -175,11 +194,10 @@ export function Sidebar({
                                                 setEditingSnippetId(snippet.id);
                                                 setEditingName(snippet.name);
                                             }}
-                                            className={`flex-1 text-left px-3 py-1.5 rounded-l text-sm transition-all duration-200 flex items-center space-x-2 border-l border-t border-b overflow-hidden relative ${
-                                                activeSnippetId === snippet.id
-                                                ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                                : 'text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-200 border-transparent'
-                                            }`}
+                                            className={`flex-1 text-left px-3 py-1.5 rounded-l text-sm transition-all duration-200 flex items-center space-x-2 border-l border-t border-b overflow-hidden relative ${activeSnippetId === snippet.id
+                                                    ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                                    : 'text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-200 border-transparent'
+                                                }`}
                                         >
                                             <svg className={`w-3.5 h-3.5 opacity-50 flex-shrink-0 ${activeSnippetId === snippet.id ? 'text-blue-400' : 'text-neutral-500 group-hover:text-neutral-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -201,21 +219,19 @@ export function Sidebar({
                                                 <span className="truncate">{snippet.name}</span>
                                             )}
                                         </button>
-                                        <div className={`flex rounded-r overflow-hidden transition-all duration-200 border-r border-t border-b ${
-                                            activeSnippetId === snippet.id
-                                            ? 'bg-blue-500/10 border-blue-500/20'
-                                            : 'bg-neutral-900 border-transparent group-hover:border-neutral-800 opacity-0 group-hover:opacity-100'
-                                        }`}>
+                                        <div className={`flex rounded-r overflow-hidden transition-all duration-200 border-r border-t border-b ${activeSnippetId === snippet.id
+                                                ? 'bg-blue-500/10 border-blue-500/20'
+                                                : 'bg-neutral-900 border-transparent group-hover:border-neutral-800 opacity-0 group-hover:opacity-100'
+                                            }`}>
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     onExportSnippet(snippet);
                                                 }}
-                                                className={`px-1.5 transition-colors ${
-                                                    activeSnippetId === snippet.id
-                                                    ? 'text-blue-500/70 hover:text-emerald-400 hover:bg-blue-500/20'
-                                                    : 'text-neutral-500 hover:text-emerald-400 hover:bg-neutral-800'
-                                                }`}
+                                                className={`px-1.5 transition-colors ${activeSnippetId === snippet.id
+                                                        ? 'text-blue-500/70 hover:text-emerald-400 hover:bg-blue-500/20'
+                                                        : 'text-neutral-500 hover:text-emerald-400 hover:bg-neutral-800'
+                                                    }`}
                                                 title="Export Snippet"
                                             >
                                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -227,11 +243,10 @@ export function Sidebar({
                                                     e.stopPropagation();
                                                     onDeleteSnippet(snippet.id);
                                                 }}
-                                                className={`px-1.5 transition-colors ${
-                                                    activeSnippetId === snippet.id
-                                                    ? 'text-blue-500/70 hover:text-red-500 hover:bg-blue-500/20'
-                                                    : 'text-neutral-500 hover:text-red-500 hover:bg-neutral-800'
-                                                }`}
+                                                className={`px-1.5 transition-colors ${activeSnippetId === snippet.id
+                                                        ? 'text-blue-500/70 hover:text-red-500 hover:bg-blue-500/20'
+                                                        : 'text-neutral-500 hover:text-red-500 hover:bg-neutral-800'
+                                                    }`}
                                                 title="Delete Snippet"
                                             >
                                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -242,7 +257,7 @@ export function Sidebar({
                                     </div>
                                 ))
                             )}
-                            
+
                             <div className="flex space-x-1 mt-1">
                                 <button
                                     onClick={onAddSnippet}
@@ -271,15 +286,15 @@ export function Sidebar({
 
                 {/* Objects Group */}
                 <div className="space-y-1 mt-4">
-                    <button 
+                    <button
                         onClick={() => setIsObjectsOpen(!isObjectsOpen)}
                         className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-bold text-neutral-400 uppercase tracking-widest hover:text-neutral-200 transition-colors group"
                     >
                         <div className="flex items-center space-x-1.5">
-                        <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isObjectsOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${isObjectsOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                             <span>Objects ({objects.length})</span>
                         </div>
-                        <button 
+                        <button
                             onClick={(e) => { e.stopPropagation(); onRefreshObjects(); }}
                             className="opacity-0 group-hover:opacity-100 p-1 hover:bg-neutral-800 rounded text-neutral-500 hover:text-neutral-300 transition-all"
                             title="Refresh Objects"
@@ -292,11 +307,11 @@ export function Sidebar({
                         <div className="pl-4 space-y-1">
                             {['trigger', 'index', 'view'].map(type => {
                                 const typeObjects = objects.filter(o => o.type === type);
-                                
+
                                 return (
                                     <div key={type} className="space-y-0.5">
                                         <div className="group/type flex items-center justify-between">
-                                            <button 
+                                            <button
                                                 onClick={() => toggleType(type)}
                                                 className="flex-1 flex items-center space-x-1.5 px-2 py-1 text-xs font-semibold text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/30 rounded transition-colors"
                                             >
@@ -314,11 +329,10 @@ export function Sidebar({
                                                             <button
                                                                 key={obj.name}
                                                                 onClick={() => onSelectObject(obj)}
-                                                                className={`w-full text-left px-3 py-1 text-xs rounded transition-all duration-200 flex items-center space-x-2 ${
-                                                                    activeObject?.name === obj.name && activeObject?.type === type
-                                                                    ? 'bg-purple-500/10 text-purple-400 border-l border-purple-500/50'
-                                                                    : 'text-neutral-500 hover:bg-neutral-800/50 hover:text-neutral-300'
-                                                                }`}
+                                                                className={`w-full text-left px-3 py-1 text-xs rounded transition-all duration-200 flex items-center space-x-2 ${activeObject?.name === obj.name && activeObject?.type === type
+                                                                        ? 'bg-purple-500/10 text-purple-400 border-l border-purple-500/50'
+                                                                        : 'text-neutral-500 hover:bg-neutral-800/50 hover:text-neutral-300'
+                                                                    }`}
                                                             >
                                                                 <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                                                                 <span className="truncate">{obj.name}</span>
@@ -331,18 +345,18 @@ export function Sidebar({
                                                     // Triggers and Indexes nested by table
                                                     tables.map(tableName => {
                                                         const tableObjects = typeObjects.filter(o => o.tbl_name === tableName);
-                                                        
+
                                                         return (
                                                             <div key={tableName} className="space-y-0.5">
                                                                 <div className="group/table flex items-center justify-between">
-                                                                    <button 
+                                                                    <button
                                                                         onClick={() => toggleTable(`${type}:${tableName}`)}
                                                                         className="flex-1 flex items-center space-x-1.5 px-2 py-0.5 text-[11px] font-medium text-neutral-500 hover:text-neutral-300 transition-colors"
                                                                     >
                                                                         <svg className={`w-2.5 h-2.5 transition-transform duration-200 ${expandedTables[`${type}:${tableName}`] ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                                                         <span className="truncate">{tableName} {tableObjects.length > 0 && `(${tableObjects.length})`}</span>
                                                                     </button>
-                                                                    <button 
+                                                                    <button
                                                                         onClick={(e) => { e.stopPropagation(); onAddObject(type as any, tableName); }}
                                                                         className="opacity-0 group-hover/table:opacity-100 p-1 hover:bg-emerald-500/10 text-emerald-500 rounded transition-all mr-1"
                                                                         title={`Add ${type}`}
@@ -358,13 +372,12 @@ export function Sidebar({
                                                                                 <button
                                                                                     key={obj.name}
                                                                                     onClick={() => onSelectObject(obj)}
-                                                                                    className={`w-full text-left px-3 py-1 text-xs rounded transition-all duration-200 flex items-center space-x-2 ${
-                                                                                        activeObject?.name === obj.name && activeObject?.type === type
-                                                                                        ? type === 'trigger' 
-                                                                                            ? 'bg-orange-500/10 text-orange-400 border-l border-orange-500/50'
-                                                                                            : 'bg-blue-500/10 text-blue-400 border-l border-blue-500/50'
-                                                                                        : 'text-neutral-500 hover:bg-neutral-800/50 hover:text-neutral-300'
-                                                                                    }`}
+                                                                                    className={`w-full text-left px-3 py-1 text-xs rounded transition-all duration-200 flex items-center space-x-2 ${activeObject?.name === obj.name && activeObject?.type === type
+                                                                                            ? type === 'trigger'
+                                                                                                ? 'bg-orange-500/10 text-orange-400 border-l border-orange-500/50'
+                                                                                                : 'bg-blue-500/10 text-blue-400 border-l border-blue-500/50'
+                                                                                            : 'text-neutral-500 hover:bg-neutral-800/50 hover:text-neutral-300'
+                                                                                        }`}
                                                                                 >
                                                                                     {type === 'trigger' ? (
                                                                                         <svg className="w-3 h-3 opacity-50 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
@@ -391,7 +404,6 @@ export function Sidebar({
                         </div>
                     )}
                 </div>
-
             </div>
 
             <div className="p-3 border-t border-neutral-900 bg-neutral-950/50 space-y-2">

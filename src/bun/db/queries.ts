@@ -1,5 +1,5 @@
 import { getDatabase } from "./connection";
-import type { ColumnInfo, TableData, ColumnDef } from "../../shared/types";
+import type { ColumnInfo, TableData, ColumnDef, ForeignKeyInfo, TableSchema, FullSchema } from "../../shared/types";
 
 export function getTableNames(): string[] {
     const db = getDatabase();
@@ -24,19 +24,76 @@ export function getTableInfo(tableName: string): ColumnInfo[] {
     }));
 }
 
+export function getForeignKeys(tableName: string): ForeignKeyInfo[] {
+    const db = getDatabase();
+    const rows = db.query<any, [string]>(`PRAGMA foreign_key_list("${tableName}")`).all(tableName);
+
+    return rows.map(row => ({
+        id: row.id,
+        seq: row.seq,
+        table: row.table,
+        from: row.from,
+        to: row.to,
+        onUpdate: row.on_update,
+        onDelete: row.on_delete,
+        match: row.match
+    }));
+}
+
+export function getFullSchema(): FullSchema {
+    const tableNames = getTableNames();
+    const tables: TableSchema[] = tableNames.map(name => ({
+        name,
+        columns: getTableInfo(name),
+        foreignKeys: getForeignKeys(name)
+    }));
+
+    return { tables };
+}
+
 export function executeRawQuery(sql: string): any {
     const db = getDatabase();
     try {
-        const query = db.query(sql);
-        const columns = query.columnNames;
-        const rows = query.values() as any[][];
+        // Naive split by semicolon that ignores semicolons inside single quotes
+        const statements = sql
+            .split(/;(?=(?:[^']*'[^']*')*[^']*$)/)
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+
+        if (statements.length === 0) {
+            return { sql, columns: [], rows: [], changes: 0 };
+        }
+
+        let lastResult: any = null;
+        for (const stmt of statements) {
+            // Check if it's a SELECT or PRAGMA (query returns data)
+            const isQuery = /^\s*(SELECT|PRAGMA|WITH|SHOW|DESCRIBE|EXPLAIN)/i.test(stmt);
+            
+            if (isQuery) {
+                const query = db.query(stmt);
+                lastResult = {
+                    sql: stmt,
+                    columns: query.columnNames,
+                    rows: query.values() as any[][]
+                };
+            } else {
+                // For DDL/DML, use .run() which is the correct way in bun:sqlite to execute changes
+                db.run(stmt);
+                lastResult = {
+                    sql: stmt,
+                    columns: [],
+                    rows: []
+                };
+            }
+        }
+
         return {
-            sql,
-            columns,
-            rows,
+            ...lastResult,
+            fullSql: sql,
             changes: (db.query("SELECT total_changes() as total").get() as any)?.total || 0
         };
     } catch (e) {
+        console.error(`[queries] executeRawQuery Error: ${e}`);
         return { sql, error: String(e) };
     }
 }

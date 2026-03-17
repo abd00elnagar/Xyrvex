@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Electroview } from "electrobun/view";
-import type { AppSchema, TableData, SqlSnippet, OpenResult, SessionData, AppSettings } from "../shared/types";
+import type { TableData, SqlSnippet, OpenResult, SessionData, AppSettings } from "../shared/types";
 import { Header } from "./components/Header";
 import { Sidebar } from './components/Sidebar';
 import { DataTable } from './components/DataTable';
@@ -14,22 +13,9 @@ import { Dialog, DialogType } from "./components/Dialog";
 import { SettingsModal } from "./components/SettingsModal";
 import { ObjectExplorerView } from "./components/ObjectExplorerView";
 import type { DbObject } from "../shared/types";
+import Schema from "./components/Schema";
 
-const rpc = Electroview.defineRPC<AppSchema>({
-	handlers: {
-		messages: {
-			dbSaved: (payload: { dbPath: string | null; dbName: string }) => {
-				console.log("[RPC] Message dbSaved:", payload.dbPath);
-			},
-			dbDirtyChanged: (payload: { isDirty: boolean }) => {
-				console.log("[RPC] Message dbDirtyChanged:", payload.isDirty);
-			}
-		}
-	}
-});
-
-// Initialize RPC transport
-new Electroview({ rpc });
+import { rpc } from "./rpc";
 
 function App() {
 	const [dbName, setDbName] = useState<string>("No database open");
@@ -46,6 +32,7 @@ function App() {
 	const [isAutoSave, setIsAutoSave] = useState(false);
 	const [undoStack, setUndoStack] = useState<any[]>([]);
 	const [redoStack, setRedoStack] = useState<any[]>([]);
+	const [schema, setSchema] = useState<boolean>(false);
 
 	// Settings State
 	const [settings, setSettings] = useState<AppSettings>({
@@ -475,6 +462,7 @@ function App() {
 	// --- Snippets Handlers ---
 
 	const handleSelectTable = (tableName: string) => {
+		setSchema(false);
 		setActiveSnippetId(null);
 		setActiveObject(null);
 		setActiveTable(tableName);
@@ -482,13 +470,22 @@ function App() {
 	};
 
 	const handleSelectSnippet = (snippetId: string) => {
+		setSchema(false);
 		setActiveTable(null);
 		setActiveObject(null);
 		setActiveSnippetId(snippetId);
 	};
 
 	const handleSelectObject = useCallback((obj: DbObject | null) => {
+		setSchema(false);
 		setActiveObject(obj);
+		setActiveTable(null);
+		setActiveSnippetId(null);
+	}, []);
+
+	const handleSchemaOpen = useCallback(() => {
+		setSchema(true);
+		setActiveObject(null);
 		setActiveTable(null);
 		setActiveSnippetId(null);
 	}, []);
@@ -892,6 +889,8 @@ function App() {
 			<div className="flex flex-1 overflow-hidden">
 				<Sidebar
 					tables={tables}
+					isSchemaActive={schema}
+					onSchemaClick={handleSchemaOpen}
 					activeTable={activeTable}
 					onSelectTable={handleSelectTable}
 					onOpenDb={handleOpenDb}
@@ -951,6 +950,8 @@ function App() {
 							onDropColumn={handleDropColumn}
 							fontSize={settings.fontSizeTable}
 						/>
+					) : schema ? (
+						<Schema tables={tables} tableData={tableData} dbPath={dbPath} />
 					) : (
 						<div className="flex-1 flex flex-col items-center justify-center text-neutral-500 slide-in">
 							<svg className="w-12 h-12 opacity-10 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16m-7 6h7" /></svg>
