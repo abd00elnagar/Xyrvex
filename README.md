@@ -1,4 +1,4 @@
-# <img src="./src/mainview/public/logo-long.png" width="40" height="40" align="center" style="margin-right: 10px;"> Xyrvex
+# <p align="center"><img src="./src/mainview/public/logo-long.png" width="50%"></p>
 
 A high-performance, modern SQLite desktop editor built with **Electrobun**, **React**, and **Tailwind CSS**. Designed for speed, flexibility, and a premium developer experience.
 
@@ -64,4 +64,4 @@ bun run dev:hmr
 | **Undo Edit** | `Ctrl + Z` |
 | **Redo Edit** | `Ctrl + Shift + Z` |
 | **Refresh Tables** | `Ctrl + R` |
-| **Toggle SQL Console** | `Ctrl + \`` |
+| **Toggle SQL Console** | ``Ctrl + \`` |
