@@ -1,4 +1,4 @@
-# <img src="./src/mainview/public/logo.png" width="40" height="40" align="center" style="margin-right: 10px;"> Xyrvex
+# <img src="./src/mainview/public/logo-long.png" width="40" height="40" align="center" style="margin-right: 10px;"> Xyrvex
 
 A high-performance, modern SQLite desktop editor built with **Electrobun**, **React**, and **Tailwind CSS**. Designed for speed, flexibility, and a premium developer experience.
 
